@@ -1,0 +1,11 @@
+image:
+  name: darkmattercoder/qt-build:5.13.0
+  entrypoint: [""]
+
+stages:
+   - linux-build
+
+Build code:
+   stage: linux-build
+   script:
+      - qmake deepn.pro -spec linux-g++
