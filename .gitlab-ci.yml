@@ -1,11 +1,32 @@
-image:
-  name: venkykrishna/deepn:latest
-  entrypoint: ["bash", "/entrypoint.sh"]
-
 stages:
    - linux-win-build
+   - publish
 
-build_jobs:
+linux-win-build:
    stage: linux-win-build
+   image: venkykrishna/deepn:latest
    script:
-      -  docker run -v $(pwd):/workdir venkykrishna/deepn:latest
+      -  docker run venkykrishna/deepn:latest
+   artifacts:
+      paths:
+         - /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z
+         - /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
+      expire_in: '1 hour'
+
+publish:
+   image: inetprocess/gitlab-release
+   stage: publish
+   dependencies:
+      - linux-win-build
+   before_script: []
+   script:
+        - gitlab-release --message "Latest Release ($(date))" /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
+
+# publish:release:
+#    image: registry.gitlab.com/gitlab-automation-toolkit/gitlab-auto-release
+#    stage: release
+#    dependencies:
+#       - linux-win-build
+#    before_script: []
+#    script:
+#       - gitlab_auto_release --artifacts linux-win-build

@@ -23,8 +23,20 @@ FORMS += \
 TRANSLATIONS += \
     translations/deepn_en_US.ts
 
-ICON = icons/deepn.icns
-RC_ICONS = icons/deepn.ico
+RC_ICONS
+
+RESOURCES +=
+
+macx {
+    ICON = icons/deepn.icns
+    QMAKE_LFLAGS += -Bstatic
+    QMAKE_MAC_SDK = macosx10.15
+}
+
+win32 {
+    RC_ICONS = icons/deepn.ico
+    ICON = icons/deepn.ico
+}
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
