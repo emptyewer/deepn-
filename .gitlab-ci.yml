@@ -9,3 +9,8 @@ build_jobs:
    stage: linux-win-build
    script:
       -  docker run venkykrishna/deepn:latest
+   artifacts:
+      paths:
+         - /builds/emptyewer/deepn-plus/build-deepn-Desktop_Qt_5_15_2_linux_64bit-Release/DEEPN++
+         - /builds/emptyewer/deepn-plus/build-deepn-Desktop_Qt_5_15_2_win64_64bit-Release/DEEPN++.exe
+      expire_in: never
