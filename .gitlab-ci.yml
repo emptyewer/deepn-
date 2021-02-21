@@ -8,4 +8,4 @@ stages:
 build_jobs:
    stage: linux-win-build
    script:
-      -  docker run -v $(pwd):/workdir venkykrishna/deepn:latest
+      -  docker run venkykrishna/deepn:latest

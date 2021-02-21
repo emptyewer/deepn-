@@ -1,5 +1,4 @@
 source /etc/environment
-cd /workdir
 
 qmake deepn.pro
 make -j8

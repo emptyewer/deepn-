@@ -1,1 +1,1 @@
-docker run --rm -v $(pwd):/workdir deepn/compile:latest
+docker run --rm -v $(pwd):/ deepn/compile:latest
