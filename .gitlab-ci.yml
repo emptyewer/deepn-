@@ -17,11 +17,11 @@ linux-win-build:
       expire_in: never
 
 
-release:
+publish:release:
    image: registry.gitlab.com/gitlab-automation-toolkit/gitlab-auto-release
    stage: release
    dependencies:
       - linux-win-build
    before_script: []
    script:
-      - gitlab_auto_release --changelog CHANGELOG.md --artifacts linux-win-build
+      - gitlab_auto_release --artifacts linux-win-build
