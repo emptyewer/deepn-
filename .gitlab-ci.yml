@@ -1,5 +1,5 @@
 image:
-  name: darkmattercoder/qt-build:5.13.0
+  name: darkmattercoder/qt-build:5.15.2
   entrypoint: [""]
 
 stages:
