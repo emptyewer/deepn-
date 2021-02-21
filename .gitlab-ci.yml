@@ -5,7 +5,8 @@ image:
 stages:
    - linux-build
 
-Build code:
+build_jobs:
    stage: linux-build
    script:
       - qmake deepn.pro -spec linux-g++
+      - make
