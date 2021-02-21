@@ -1,12 +1,9 @@
 image:
-  name: darkmattercoder/qt-build:5.15.2
-  entrypoint: [""]
+  name: venkykrishna/deepn:latest
+  entrypoint: ["bash", "/entrypoint.sh"]
 
 stages:
-   - linux-build
+   - builds
 
 build_jobs:
-   stage: linux-build
-   script:
-      - qmake deepn.pro -spec linux-g++
-      - make
+   stage: builds
