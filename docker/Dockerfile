@@ -19,6 +19,8 @@ RUN apt-get install -y gettext git gperf intltool libc6-dev-i386 libgdk-pixbuf2.
 RUN apt-get install -y mxe-x86-64-w64-mingw32.static-cc mxe-i686-w64-mingw32.static-cc
 RUN apt-get install -y mxe-x86-64-w64-mingw32.static-qt5 mxe-x86-64-w64-mingw32.static-armadillo
 RUN apt-get install -y mxe-i686-w64-mingw32.static-qt5 mxe-i686-w64-mingw32.static-armadillo
+RUN apt-get install -y python3-pip
+RUN pip3 install gitlab-auto-release
 
 RUN echo "PATH=/usr/lib/mxe/usr/bin:\$PATH" >> /etc/environment
 COPY entrypoint.sh /entrypoint.sh

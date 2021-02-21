@@ -4,13 +4,24 @@ image:
 
 stages:
    - linux-win-build
+   - release
 
-build_jobs:
+linux-win-build:
    stage: linux-win-build
    script:
       -  docker run venkykrishna/deepn:latest
    artifacts:
       paths:
-         - /builds/emptyewer/deepn-plus/build-deepn-Desktop_Qt_5_15_2_linux_64bit-Release/DEEPN++
-         - /builds/emptyewer/deepn-plus/build-deepn-Desktop_Qt_5_15_2_win64_64bit-Release/DEEPN++.exe
+         - /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z
+         - /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
       expire_in: never
+
+
+release:
+   image: registry.gitlab.com/gitlab-automation-toolkit/gitlab-auto-release
+   stage: release
+   dependencies:
+      - linux-win-build
+   before_script: []
+   script:
+      - gitlab_auto_release --changelog CHANGELOG.md --artifacts linux-win-build
