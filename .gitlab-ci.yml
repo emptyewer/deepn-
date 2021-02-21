@@ -1,8 +1,6 @@
-
-
 stages:
    - linux-win-build
-   - release
+   - publish
 
 linux-win-build:
    stage: linux-win-build
