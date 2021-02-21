@@ -16,8 +16,9 @@ linux-win-build:
 publish:
    image: inetprocess/gitlab-release
    stage: publish
-   only:
-      - tags
+   dependencies:
+      - linux-win-build
+   before_script: []
    script:
         - gitlab-release --message 'Initial release' /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
 
