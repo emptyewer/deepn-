@@ -1,4 +1,5 @@
 source /etc/environment
+cd /builds/emptyewer/deepn-plus/
 
 qmake deepn.pro
 make -j8
