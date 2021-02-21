@@ -3,7 +3,9 @@ image:
   entrypoint: ["bash", "/entrypoint.sh"]
 
 stages:
-   - builds
+   - linux-win-build
 
 build_jobs:
-   stage: builds
+   stage: linux-win-build
+   script:
+      -  docker run -v $(pwd):/workdir venkykrishna/deepn:latest
