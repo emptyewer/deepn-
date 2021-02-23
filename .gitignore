@@ -1,3 +1,5 @@
-build-*
+build*
 deepn.pro.user
 .qmake.stash
+.DS_Store
+libs
