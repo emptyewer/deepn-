@@ -23,4 +23,4 @@ COPY conan/* /root/.conan/profiles/
 
 RUN echo "PATH=/usr/lib/mxe/usr/bin:\$PATH" >> /etc/environment
 COPY entrypoint.sh /entrypoint.sh
-ENTRYPOINT [ "/bin/bash", "entrypoint.sh" ]
+ENTRYPOINT [ "/bin/bash", "/entrypoint.sh" ]

@@ -32,4 +32,4 @@ RUN pip3 install conan && mkdir -p /root/.conan/profiles
 COPY conan/* /root/.conan/profiles/
 
 COPY entrypoint.sh /entrypoint.sh
-ENTRYPOINT [ "/bin/bash", "entrypoint.sh" ]
+ENTRYPOINT [ "/bin/bash", "/entrypoint.sh" ]

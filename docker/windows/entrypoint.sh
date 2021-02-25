@@ -8,4 +8,4 @@ conan install -pr:h windows .. -s build_type=Release
 cd ..
 /usr/lib/mxe/usr/bin/x86_64-w64-mingw32.static-cmake -DCMAKE_BUILD_TYPE=Release -S $ROOT_DIR -B $ROOT_DIR/build_windows_release
 make -j6 -C $ROOT_DIR/build_windows_release
-7z a -m0=ppmd -mx=9 $ROOT_DIR/deepn++_windows_64bit.7z $ROOT_DIR/build_windows_release/DEEPN++.exe
+7z a -m0=ppmd -mx=9 $ROOT_DIR/deepn++_windows_64bit.7z $ROOT_DIR/build_windows_release/bin/DEEPN++.exe
