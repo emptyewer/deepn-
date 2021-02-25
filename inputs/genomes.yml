@@ -18,3 +18,4 @@ genomes:
     chromosomes_list: hg38_Chr_List
 
 docker push venkykrishna/deepn:latest
+cd .. && git push origin master

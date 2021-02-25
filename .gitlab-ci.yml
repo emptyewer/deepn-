@@ -1,15 +1,25 @@
 stages:
-   - linux-win-build
+   - linux-build
+   - windows-build
    - publish
 
-linux-win-build:
-   stage: linux-win-build
-   image: venkykrishna/deepn:latest
+linux-build:
+   stage: linux-build
+   image: venkykrishna/linux64:latest
    script:
-      -  docker run venkykrishna/deepn:latest
+      -  docker run venkykrishna/linux64:latest
    artifacts:
       paths:
          - /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z
+      expire_in: '1 hour'
+
+windows-build:
+   stage: windows-build
+   image: venkykrishna/windows64:latest
+   script:
+      -  docker run venkykrishna/windows64:latest
+   artifacts:
+      paths:
          - /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
       expire_in: '1 hour'
 
@@ -21,12 +31,3 @@ publish:
    before_script: []
    script:
         - gitlab-release --message "Latest Release ($(date))" /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
-
-# publish:release:
-#    image: registry.gitlab.com/gitlab-automation-toolkit/gitlab-auto-release
-#    stage: release
-#    dependencies:
-#       - linux-win-build
-#    before_script: []
-#    script:
-#       - gitlab_auto_release --artifacts linux-win-build
