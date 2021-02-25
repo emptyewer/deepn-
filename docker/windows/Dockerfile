@@ -14,12 +14,12 @@ RUN apt-get update
 RUN apt-get install -y mxe-x86-64-w64-mingw32.static-cc mxe-x86-64-w64-mingw32.static-qt5 mxe-x86-64-w64-mingw32.static-armadillo p7zip-full python3-pip
 
 RUN pip3 install gitlab-auto-release
-# Remove all apt pacakges 
+# Remove all apt pacakges
 RUN apt-get clean autoclean && apt-get autoremove --yes && rm -rf /var/lib/{apt,dpkg,cache,log}/
 
 # Install conan
-RUN pip3 install conan
-COPY conan/* ~/.conan/profiles/
+RUN pip3 install conan && mkdir -p /root/.conan/profiles
+COPY conan/* /root/.conan/profiles/
 
 RUN echo "PATH=/usr/lib/mxe/usr/bin:\$PATH" >> /etc/environment
 COPY entrypoint.sh /entrypoint.sh
