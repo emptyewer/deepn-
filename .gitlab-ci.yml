@@ -26,7 +26,8 @@ publish:
    image: inetprocess/gitlab-release
    stage: publish
    dependencies:
-      - build
+      - linux-build
+      - windows-build
    before_script: []
    script:
         - gitlab-release --message "Latest Release ($(date))" /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
