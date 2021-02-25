@@ -1,10 +1,9 @@
 stages:
-   - linux-build
-   - windows-build
+   - build
    - publish
 
 linux-build:
-   stage: linux-build
+   stage: build
    image: venkykrishna/linux64:latest
    script:
       -  docker run venkykrishna/linux64:latest
@@ -14,7 +13,7 @@ linux-build:
       expire_in: '1 hour'
 
 windows-build:
-   stage: windows-build
+   stage: build
    image: venkykrishna/windows64:latest
    script:
       -  docker run venkykrishna/windows64:latest
@@ -27,8 +26,7 @@ publish:
    image: inetprocess/gitlab-release
    stage: publish
    dependencies:
-      - linux-build
-      - windows-build
+      - build
    before_script: []
    script:
         - gitlab-release --message "Latest Release ($(date))" /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
