@@ -1,4 +1,4 @@
-#include "src/mainwindow.h"
+#include "deepn/mainwindow.h"
 
 #include <QApplication>
 

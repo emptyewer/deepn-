@@ -16,20 +16,36 @@ set(CONAN_DISABLE_CHECK_COMPILER TRUE)
 # Sources
 set(PROJECT_SOURCES
         main.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/mainwindow.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/mainwindow.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/mainwindow.ui
+        ${CMAKE_CURRENT_SOURCE_DIR}/deepn/mainwindow.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/deepn/mainwindow.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/deepn/mainwindow.ui
 )
 
 set(EXECUTABLE "${PROJECT_NAME}")
 
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_basic_setup()
+
+if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan.cmake")
+  message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
+  file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/v0.16.1/conan.cmake"
+                "${CMAKE_BINARY_DIR}/conan.cmake"
+                TLS_VERIFY ON)
+endif()
+
+include(${CMAKE_BINARY_DIR}/conan.cmake)
+conan_cmake_configure(REQUIRES fmt/6.1.2 GENERATORS cmake_find_package)
+conan_cmake_autodetect(settings)
+conan_cmake_install(PATH_OR_REFERENCE .
+                    BUILD missing
+                    REMOTE conan-center
+                    SETTINGS ${settings})
 
 # Libraries
 find_package(QT NAMES Qt5 COMPONENTS Widgets REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
 find_program(7ZIP NAMES 7z 7zip REQUIRED)
+
+add_subdirectory(gene_count)
+add_subdirectory(junction_make)
 
 # OS Specific configurations
 if (APPLE)
@@ -43,15 +59,18 @@ if (APPLE)
     set(EXECUTABLE_PATH "${${EXECUTABLE}_BINARY_DIR}/${EXECUTABLE}.app")
 elseif (WIN32)
     set(DEEPN_WINRC deepn_windows.rc)
-    set_property(SOURCE deepn_windows.rc APPEND PROPERTY OBJECT_DEPENDS ${PROJECT_SOURCE_DIR}/icons/deepn.ico)
+    set_property(SOURCE ${PROJECT_SOURCE_DIR}/icons/deepn_windows.rc APPEND PROPERTY OBJECT_DEPENDS ${PROJECT_SOURCE_DIR}/icons/deepn.ico)
     add_executable(${EXECUTABLE} WIN32 ${PROJECT_SOURCES} ${DEEPN_WINRC})
 else()
     add_executable(${EXECUTABLE} ${PROJECT_SOURCES})
 endif()
 
-target_link_libraries(${EXECUTABLE} PUBLIC Qt${QT_VERSION_MAJOR}::Widgets ${CONAN_LIBS_RELEASE})
+target_link_libraries(${EXECUTABLE} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets ${CONAN_LIBS_RELEASE})
 
 if (APPLE)
+    add_custom_command(TARGET ${EXECUTABLE} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E make_directory ${EXECUTABLE_PATH}/Contents/Apps)
     add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${DEPLOY_EXECUTABLE} ${EXECUTABLE_PATH} VERBATIM)
-    add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${7ZIP} a -m0=ppmd -mx=9 ${CMAKE_CURRENT_SOURCE_DIR}/deepn++_mac_64bit.7z ${EXECUTABLE_PATH} VERBATIM)
+    add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_BINARY_DIR}/gene_count/GeneCount++.app ${EXECUTABLE_PATH}/Contents/Apps/GeneCount++.app VERBATIM)
+    add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_BINARY_DIR}/junction_make/JunctionMake++.app ${EXECUTABLE_PATH}/Contents/Apps/JunctionMake++.app VERBATIM)
+#    add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${7ZIP} a -m0=ppmd -mx=9 ${CMAKE_CURRENT_SOURCE_DIR}/deepn++_mac_64bit.7z ${EXECUTABLE_PATH} VERBATIM)
 endif()
