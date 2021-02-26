@@ -37,33 +37,36 @@ windows-docker:
       - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest -f docker/windows/Dockerfile
       - docker push $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
 
-# linux-build:
-#    stage: build
-#    image: emptyewer/linux64:latest
-#    script:
-#       -  docker run emptyewer/linux64:latest
-#    artifacts:
-#       paths:
-#          - /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z
-#       expire_in: '1 hour'
+linux-build:
+   stage: build
+   image: $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
+   script:
+      -  docker run $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
+   dependencies:
+     - linux-docker
+   artifacts:
+      paths:
+         - /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z
+      expire_in: '1 hour'
 
-# windows-build:
-#    stage: build
-#    image: emptyewer/windows64:latest
-#    script:
-#       -  docker run emptyewer/windows64:latest
-#    artifacts:
-#       paths:
-#          - /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
-#       expire_in: '1 hour'
+windows-build:
+   stage: build
+   image: $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
+   script:
+      -  docker run $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
+   dependencies:
+      - windows-docker
+   artifacts:
+      paths:
+         - /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
+      expire_in: '1 hour'
 
-# publish:
-#    image: emptyewer/gitlab-release
-#    stage: publish
-#    dependencies:
-#       - linux-build
-#       - windows-build
-#       - linux-docker
-#    before_script: []
-#    script:
-#         - gitlab-release --message "Latest Release ($(date))" /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
+publish:
+   image: venkykrishna/gitlab-release
+   stage: publish
+   dependencies:
+      - linux-build
+      - windows-build
+   before_script: []
+   script:
+        - gitlab-release --message "Latest Release ($(date))" /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z

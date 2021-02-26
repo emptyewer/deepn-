@@ -3,13 +3,12 @@ FROM ubuntu:20.04
 ENV TZ=America/Los_Angeles
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Ubuntu Installs
+# Ubuntu Installs chan
 RUN apt-get update
 RUN apt-get install -y build-essential gcc axel lzip make openssl p7zip-full patch perl python ruby sed unzip wget xz-utils vim
 RUN apt-get install -y autoconf automake autopoint bash bison bzip2 flex g++ g++-multilib gettext git gperf intltool python3-pip
 RUN apt-get install -y libc6-dev-i386 libgdk-pixbuf2.0-dev libltdl-dev libssl-dev libtool-bin libxml-parser-perl libclang-dev
 
-RUN pip3 install gitlab-auto-release
 # Remove all apt pacakges
 RUN apt-get install -y libfontconfig1-dev libfreetype6-dev libx11-dev libx11-xcb-dev libxext-dev libxfixes-dev libxi-dev libxrender-dev libxcb1-dev libxcb-glx0-dev libxcb-keysyms1-dev libxcb-image0-dev libxcb-shm0-dev libxcb-icccm4-dev libxcb-sync-dev libxcb-xfixes0-dev libxcb-shape0-dev libxcb-randr0-dev libxcb-render-util0-dev libxcb-util-dev libxcb-xinerama0-dev libxcb-xkb-dev libxkbcommon-dev libxkbcommon-x11-dev libglu1-mesa-dev
 RUN apt-get install -y libharfbuzz-dev libicu-dev libjpeg-dev libtiff-dev libmng-dev libwebp-dev libsqlite-dev libinput-dev ibus postgresql libproxy-dev cups
@@ -28,7 +27,7 @@ WORKDIR /
 RUN rm -rf /qt
 
 # Install conan
-RUN pip3 install conan
+RUN pip3 install conan gitlab-auto-release
 RUN mkdir -p /root/.conan/profiles
 COPY docker/linux/default /root/.conan/profiles/
 COPY docker/linux/entrypoint.sh /entrypoint.sh
