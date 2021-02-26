@@ -6,6 +6,8 @@ stages:
 linux-docker:
    stage: docker
    image: docker:19.03.12
+   services:
+      - docker:19.03.12-dind
    only:
       changes:
         - docker/linux/Dockerfile
@@ -19,6 +21,8 @@ linux-docker:
 windows-docker:
    stage: docker
    image: docker:19.03.12
+   services:
+      - docker:19.03.12-dind
    only:
       changes:
         - docker/windows/Dockerfile
