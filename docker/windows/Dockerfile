@@ -4,8 +4,8 @@ ENV TZ=America/Los_Angeles
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apt-get update
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -q keyboard-configuration
-RUN apt-get install -y -q gnupg2 lsb-release software-properties-common
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -qq keyboard-configuration
+RUN apt-get install -y -qq gnupg2 lsb-release software-properties-common
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 86B72ED9
 RUN add-apt-repository "deb [arch=amd64] https://pkg.mxe.cc/repos/apt `lsb_release -sc` main" 
 
