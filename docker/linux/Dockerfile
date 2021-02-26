@@ -5,7 +5,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Ubuntu Installs
 RUN apt-get update
-RUN apt-get install -y build-essential gcc axel lzip make openssl p7zip-full patch perl python ruby sed unzip wget xz-utils
+RUN apt-get install -y build-essential gcc axel lzip make openssl p7zip-full patch perl python ruby sed unzip wget xz-utils vim
 RUN apt-get install -y autoconf automake autopoint bash bison bzip2 flex g++ g++-multilib gettext git gperf intltool python3-pip
 RUN apt-get install -y libc6-dev-i386 libgdk-pixbuf2.0-dev libltdl-dev libssl-dev libtool-bin libxml-parser-perl libclang-dev
 
@@ -28,8 +28,8 @@ WORKDIR /
 RUN rm -rf /qt
 
 # Install conan
-RUN pip3 install conan && mkdir -p /root/.conan/profiles
-COPY conan/* /root/.conan/profiles/
-
-COPY entrypoint.sh /entrypoint.sh
+RUN pip3 install conan
+RUN mkdir -p /root/.conan/profiles
+COPY docker/linux/default /root/.conan/profiles/
+COPY docker/linux/entrypoint.sh /entrypoint.sh
 ENTRYPOINT [ "/bin/bash", "/entrypoint.sh" ]

@@ -1,33 +1,59 @@
 stages:
+   - docker
    - build
    - publish
 
-linux-build:
-   stage: build
-   image: venkykrishna/linux64:latest
+linux-docker:
+   stage: docker
+   only:
+      changes:
+        - docker/linux/Dockerfile
+        - docker/linux/default
+        - docker/linux/entrypoint.sh
    script:
-      -  docker run venkykrishna/linux64:latest
-   artifacts:
-      paths:
-         - /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z
-      expire_in: '1 hour'
+      - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
+      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest -f docker/linux/Dockerfile
+      - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
 
-windows-build:
-   stage: build
-   image: venkykrishna/windows64:latest
+windows-docker:
+   stage: docker
+   only:
+      changes:
+        - docker/windows/Dockerfile
+        - docker/windows/default
+        - docker/windows/entrypoint.sh
    script:
-      -  docker run venkykrishna/windows64:latest
-   artifacts:
-      paths:
-         - /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
-      expire_in: '1 hour'
+      - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
+      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest -f docker/windows/Dockerfile
+      - docker push $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
 
-publish:
-   image: venkykrishna/gitlab-release
-   stage: publish
-   dependencies:
-      - linux-build
-      - windows-build
-   before_script: []
-   script:
-        - gitlab-release --message "Latest Release ($(date))" /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
+# linux-build:
+#    stage: build
+#    image: emptyewer/linux64:latest
+#    script:
+#       -  docker run emptyewer/linux64:latest
+#    artifacts:
+#       paths:
+#          - /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z
+#       expire_in: '1 hour'
+
+# windows-build:
+#    stage: build
+#    image: emptyewer/windows64:latest
+#    script:
+#       -  docker run emptyewer/windows64:latest
+#    artifacts:
+#       paths:
+#          - /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
+#       expire_in: '1 hour'
+
+# publish:
+#    image: emptyewer/gitlab-release
+#    stage: publish
+#    dependencies:
+#       - linux-build
+#       - windows-build
+#       - linux-docker
+#    before_script: []
+#    script:
+#         - gitlab-release --message "Latest Release ($(date))" /builds/emptyewer/deepn-plus/deepn++_linux_64bit.7z /builds/emptyewer/deepn-plus/deepn++_windows_64bit.7z
