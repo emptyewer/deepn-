@@ -4,7 +4,7 @@ ENV TZ=America/Los_Angeles
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN DEBIAN_FRONTEND=noninteractive apt-get install keyboard-configuration
 
-# Ubuntu Installs chan
+# Ubuntu Installs chans
 RUN apt-get update
 RUN apt-get install -y build-essential gcc axel lzip make openssl p7zip-full patch perl python ruby sed unzip wget xz-utils vim
 RUN apt-get install -y autoconf automake autopoint bash bison bzip2 flex g++ g++-multilib gettext git gperf intltool python3-pip
