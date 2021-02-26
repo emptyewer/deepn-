@@ -3,11 +3,15 @@ stages:
    - build
    - publish
 
+variables:
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_DRIVER: overlay2
+
 linux-docker:
    stage: docker
-   image: docker:19.03.12
+   image: docker:latest
    services:
-      - docker:19.03.12-dind
+     - docker:dind
    only:
       changes:
         - docker/linux/Dockerfile
@@ -20,9 +24,9 @@ linux-docker:
 
 windows-docker:
    stage: docker
-   image: docker:19.03.12
+   image: docker:latest
    services:
-      - docker:19.03.12-dind
+     - docker:dind
    only:
       changes:
         - docker/windows/Dockerfile
