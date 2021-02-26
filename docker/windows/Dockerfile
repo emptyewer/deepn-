@@ -22,5 +22,5 @@ RUN mkdir -p /root/.conan/profiles
 COPY docker/windows/default /root/.conan/profiles/
 
 RUN echo "PATH=/usr/lib/mxe/usr/bin:\$PATH" >> /etc/environment
-COPY docker/windows/entrypoint.sh /entrypoint.sh
+COPY docker/windows/entrypoint.sh /entrypoint.sh 
 ENTRYPOINT [ "/bin/bash", "/entrypoint.sh" ]
