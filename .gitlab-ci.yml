@@ -23,7 +23,7 @@ windows-build:
       expire_in: '1 hour'
 
 publish:
-   image: inetprocess/gitlab-release
+   image: venkykrishna/gitlab-release
    stage: publish
    dependencies:
       - linux-build
