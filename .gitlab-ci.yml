@@ -1,4 +1,5 @@
 stages:
+   - docker
    - build
    - publish
 
@@ -7,7 +8,7 @@ variables:
   DOCKER_DRIVER: overlay2
 
 linux-docker:
-   stage: build
+   stage: docker
    image: docker:latest
    services:
      - docker:dind
@@ -22,7 +23,7 @@ linux-docker:
       - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
 
 windows-docker:
-   stage: build
+   stage: docker
    image: docker:latest
    services:
      - docker:dind
