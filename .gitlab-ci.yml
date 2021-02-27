@@ -1,4 +1,5 @@
 stages:
+   - base
    - docker
    - build
    - publish
@@ -8,7 +9,7 @@ variables:
   DOCKER_DRIVER: overlay2
 
 base-docker:
-   stage: docker
+   stage: base
    image: docker:latest
    services:
      - docker:dind
