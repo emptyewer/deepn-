@@ -57,10 +57,10 @@ windows-docker:
 linux-build:
    stage: build
    image: emptyewer/deepn-plus/linux64:latest
-   before_script:
-      - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
+   before_script: []
    script:
-      -  docker run emptyewer/deepn-plus/linux64:latest
+      -  docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
+      -  docker run $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
    dependencies:
       - linux-docker
    artifacts:
@@ -71,10 +71,10 @@ linux-build:
 windows-build:
    stage: build
    image: emptyewer/deepn-plus/windows64:latest
-   before_script:
-      - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
+   before_script: []
    script:
-      -  docker run emptyewer/deepn-plus/windows64:latest
+      - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
+      - docker run $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
    dependencies:
       - windows-docker
    artifacts:
