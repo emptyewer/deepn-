@@ -1,6 +1,6 @@
-FROM $CI_REGISTRY/emptyewer/deepn-plus/linux-base:latest
+FROM $CI_REGISTRY/emptyewer/deepn-plus/base:latest
 
-# QT Static Install
+# QT Static Install a
 RUN mkdir -p qt
 WORKDIR /qt
 RUN axel -n 10 -q http://mirrors.ocf.berkeley.edu/qt/archive/qt/5.15/5.15.2/single/qt-everywhere-src-5.15.2.tar.xz

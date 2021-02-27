@@ -3,7 +3,7 @@ FROM ubuntu:20.04
 ENV TZ=America/Los_Angeles
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Ubuntu Installs
+# Ubuntu Installs a
 RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -qq keyboard-configuration > /dev/null
 RUN apt-get install -y -qq  build-essential gcc axel lzip make openssl p7zip-full patch perl python ruby sed unzip wget xz-utils vim > /dev/null
