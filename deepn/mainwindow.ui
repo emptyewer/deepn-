@@ -414,7 +414,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPlainTextEdit" name="status_text">
+        <widget class="DQTextEdit" name="status_text">
          <property name="maximumSize">
           <size>
            <width>16777215</width>
@@ -468,6 +468,13 @@
   </widget>
   <widget class="QStatusBar" name="status_bar"/>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>DQTextEdit</class>
+   <extends>QPlainTextEdit</extends>
+   <header>deepn/dqtextedit.h</header>
+  </customwidget>
+ </customwidgets>
  <tabstops>
   <tabstop>gene_count_junction_make_btn</tabstop>
   <tabstop>query_blast_btn</tabstop>

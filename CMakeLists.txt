@@ -18,6 +18,8 @@ set(PROJECT_SOURCES
         main.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/deepn/mainwindow.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/deepn/mainwindow.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/deepn/dqtextedit.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/deepn/dqtextedit.h
         ${CMAKE_CURRENT_SOURCE_DIR}/deepn/mainwindow.ui
 )
 
@@ -72,5 +74,5 @@ if (APPLE)
     add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${DEPLOY_EXECUTABLE} ${EXECUTABLE_PATH} VERBATIM)
     add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_BINARY_DIR}/gene_count/GeneCount++.app ${EXECUTABLE_PATH}/Contents/Apps/GeneCount++.app VERBATIM)
     add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_BINARY_DIR}/junction_make/JunctionMake++.app ${EXECUTABLE_PATH}/Contents/Apps/JunctionMake++.app VERBATIM)
-    add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${7ZIP} a -m0=ppmd -mx=9 ${CMAKE_CURRENT_SOURCE_DIR}/deepn++_mac_64bit.7z ${EXECUTABLE_PATH} VERBATIM)
+#    add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${7ZIP} a -m0=ppmd -mx=9 ${CMAKE_CURRENT_SOURCE_DIR}/deepn++_mac_64bit.7z ${EXECUTABLE_PATH} VERBATIM)
 endif()

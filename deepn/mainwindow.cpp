@@ -34,7 +34,7 @@ void MainWindow::on_gene_count_btn_clicked()
     } else {
         gene_count_path = appendPath(application_directory.path(), "gene_count/GeneCount++");
     }
-    QProcess::execute(QDir::toNativeSeparators(gene_count_path));
+    QProcess::startDetached(QDir::toNativeSeparators(gene_count_path));
 }
 
 
@@ -51,5 +51,5 @@ void MainWindow::on_junction_make_btn_clicked()
     } else {
         junction_make_path = appendPath(application_directory.path(), "junction_make/JunctionMake++");
     }
-    QProcess::execute(QDir::toNativeSeparators(junction_make_path));
+    QProcess::startDetached(QDir::toNativeSeparators(junction_make_path));
 }
