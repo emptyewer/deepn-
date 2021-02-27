@@ -28,6 +28,7 @@ linux-docker:
      - docker:dind
    only:
       changes:
+        - docker/linux/base/Dockerfile
         - docker/linux/Dockerfile
         - docker/linux/default
         - docker/linux/entrypoint.sh

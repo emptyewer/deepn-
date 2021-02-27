@@ -3,7 +3,7 @@ FROM ubuntu:20.04
 ENV TZ=America/Los_Angeles
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Ubuntu Installs a
+# Ubuntu Installs
 RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -qq keyboard-configuration > /dev/null
 RUN apt-get install -y -qq  build-essential gcc axel lzip make openssl p7zip-full patch perl python ruby sed unzip wget xz-utils vim > /dev/null
@@ -15,3 +15,9 @@ RUN apt-get install -y -qq libfontconfig1-dev libfreetype6-dev libx11-dev libx11
 RUN apt-get install -y -qq libharfbuzz-dev libicu-dev libjpeg-dev libtiff-dev libmng-dev libwebp-dev libsqlite-dev libinput-dev ibus postgresql libproxy-dev cups > /dev/null
 RUN apt-get install -y -qq llvm libdbus-1-dev libdbus-glib-1-dev libdbus-glib1.0-cil-dev libdbus-glib2.0-cil-dev libdbus1.0-cil-dev libdbus2.0-cil-dev libdbusada5-dev libdbuskit-dev libdbusmenu-glib-dev libdbusmenu-gtk-dev libdbusmenu-gtk3-dev libsqlite3-dev libcppdb-sqlite3-0 libvsqlitepp-dev libwxsqlite3-3.0-dev libzstd-dev libgnatcoll-syslog2-dev libdouble-conversion-dev libglobus-gssapi-gsi-dev  libglobus-gss-assist-dev libglobus-gssapi-error-dev libdrm-dev libgbm-dev libmd4c-dev libxcb-xinput-dev libgulkan-dev libvulkan-dev vulkan-validationlayers-dev libvkd3d-dev libts-dev libhts-dev libcups2-dev libcddb2-dev libmmdb2-dev libmysql++-dev libmysqlclient-dev libmysqlcppconn-dev libsoci-dev unixodbc-dev libpqxx-dev libodb-pgsql-dev freetds-dev libsdl2-dev libsdl1.2-dev libbz2-dev > /dev/null
 RUN apt-get clean autoclean && apt-get autoremove --yes && rm -rf /var/lib/{apt,dpkg,cache,log}/
+
+# Download Qt library
+RUN mkdir -p qt
+WORKDIR /qt
+RUN axel -n 10 -q http://mirrors.ocf.berkeley.edu/qt/archive/qt/5.15/5.15.2/single/qt-everywhere-src-5.15.2.tar.xz
+RUN tar xf qt-everywhere-src-5.15.2.tar.xz
