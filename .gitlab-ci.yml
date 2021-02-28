@@ -1,7 +1,8 @@
 stages:
    - base
-   - stage1
-   - stage2
+   - linux-stage1
+   - linux-stage2
+   - linux-stage3
    - docker
    - build
    - publish
@@ -24,7 +25,7 @@ base-docker:
       - docker push $CI_REGISTRY/emptyewer/deepn-plus/base:latest
 
 linux-docker-stage1:
-   stage: stage1
+   stage: linux-stage1
    image: docker:latest
    services:
      - docker:dind
@@ -40,7 +41,7 @@ linux-docker-stage1:
       - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage1:latest
 
 linux-docker-stage2:
-   stage: stage2
+   stage: linux-stage2
    image: docker:latest
    services:
      - docker:dind
@@ -56,6 +57,26 @@ linux-docker-stage2:
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
       - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage2:latest -f docker/linux/stage2/Dockerfile
       - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage2:latest
+
+linux-docker-stage3:
+   stage: linux-stage3
+   image: docker:latest
+   services:
+     - docker:dind
+   only:
+      changes:
+        - docker/linux/base/Dockerfile
+        - docker/linux/stage1/Dockerfile
+        - docker/linux/stage2/Dockerfile
+        - docker/linux/stage3/Dockerfile
+   dependencies:
+     - base-docker
+     - linux-docker-stage1
+     - linux-docker-stage2
+   script:
+      - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
+      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage3:latest -f docker/linux/stage3/Dockerfile
+      - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage3:latest
 
 linux-docker:
    stage: docker
