@@ -1,7 +1,4 @@
-FROM registry.gitlab.com/emptyewer/deepn-plus/base:latest
-
-# QT Compile and Install
-RUN make -j6 install
+FROM registry.gitlab.com/emptyewer/deepn-plus/linux64-stage2:latest
 WORKDIR /
 RUN rm -rf /qt
 
