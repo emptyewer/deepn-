@@ -3,6 +3,7 @@ stages:
    - linux-stage1
    - linux-stage2
    - linux-stage3
+   - linux-stage4
    - docker
    - build
    - publish
@@ -78,6 +79,28 @@ linux-docker-stage3:
       - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage3:latest -f docker/linux/stage3/Dockerfile
       - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage3:latest
 
+linux-docker-stage4:
+   stage: linux-stage4
+   image: docker:latest
+   services:
+     - docker:dind
+   only:
+      changes:
+        - docker/linux/base/Dockerfile
+        - docker/linux/stage1/Dockerfile
+        - docker/linux/stage2/Dockerfile
+        - docker/linux/stage3/Dockerfile
+        - docker/linux/stage4/Dockerfile
+   dependencies:
+     - base-docker
+     - linux-docker-stage1
+     - linux-docker-stage2
+     - linux-docker-stage3
+   script:
+      - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
+      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage4:latest -f docker/linux/stage4/Dockerfile
+      - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage4:latest
+
 linux-docker:
    stage: docker
    image: docker:latest
@@ -88,6 +111,8 @@ linux-docker:
         - docker/linux/base/Dockerfile
         - docker/linux/stage1/Dockerfile
         - docker/linux/stage2/Dockerfile
+        - docker/linux/stage3/Dockerfile
+        - docker/linux/stage4/Dockerfile
         - docker/linux/Dockerfile
         - docker/linux/default
         - docker/linux/entrypoint.sh
@@ -95,6 +120,8 @@ linux-docker:
      - base-docker
      - linux-docker-stage1
      - linux-docker-stage2
+     - linux-docker-stage3
+     - linux-docker-stage4
    script:
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
       - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest -f docker/linux/Dockerfile
