@@ -1,4 +1,4 @@
-FROM registry.gitlab.com/emptyewer/deepn-plus/linux64-stage4:latest
+FROM registry.gitlab.com/emptyewer/deepn-plus/linux64-stage5:latest
 WORKDIR /
 RUN rm -rf /qt
 

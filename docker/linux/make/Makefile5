@@ -1177,20 +1177,20 @@ qt.pro:
 qmake: FORCE
 	@$(QMAKE) -o Makefile qt.pro -- -prefix /opt/qt5.15.2 -sysconfdir /etc/xdg -confirm-license -opensource -static -release -platform linux-g++ -openssl-linked -dbus-linked -no-opengl -system-harfbuzz -system-sqlite -nomake examples -no-rpath -skip qtwebengine -skip qt3d -skip qtlocation
 
-qmake_all: module-qtmultimedia-qmake_all module-qtspeech-qmake_all module-qtvirtualkeyboard-qmake_all module-qtdatavis3d-qmake_all FORCE
+qmake_all: module-qtcharts-qmake_all module-qtwinextras-qmake_all module-qttools-qmake_all module-qtscript-qmake_all module-qtwebview-qmake_all module-qttranslations-qmake_all module-qtdoc-qmake_all FORCE
 
-make_first: module-qtmultimedia-make_first module-qtspeech-make_first module-qtvirtualkeyboard-make_first module-qtdatavis3d-make_first  FORCE
+make_first: module-qtcharts-make_first module-qtwinextras-make_first module-qttools-make_first module-qtscript-make_first module-qtwebview-make_first module-qttranslations-make_first module-qtdoc-make_first  FORCE
 
-all: module-qtmultimedia-all module-qtspeech-all module-qtvirtualkeyboard-all module-qtdatavis3d-all  FORCE
+all: module-qtcharts-all module-qtwinextras-all module-qttools-all module-qtscript-all module-qtwebview-all module-qttranslations-all module-qtdoc-all  FORCE
 
 clean: module-qtbase-clean module-qtnetworkauth-clean module-qtmacextras-clean module-qtx11extras-clean module-qtandroidextras-clean module-qtserialport-clean module-qtserialbus-clean module-qtimageformats-clean module-qtactiveqt-clean module-qtsvg-clean module-qtdeclarative-clean module-qtquick3d-clean module-qtquicktimeline-clean module-qtlottie-clean module-qtremoteobjects-clean module-qtscxml-clean module-qtpurchasing-clean module-qtwebsockets-clean module-qtwebglplugin-clean module-qtwebchannel-clean module-qtgamepad-clean module-qtwayland-clean module-qtconnectivity-clean module-qtsensors-clean module-qtgraphicaleffects-clean module-qtquickcontrols2-clean module-qtquickcontrols-clean module-qtxmlpatterns-clean module-qtmultimedia-clean module-qtspeech-clean module-qtvirtualkeyboard-clean module-qtdatavis3d-clean module-qtcharts-clean module-qtwinextras-clean module-qttools-clean module-qtscript-clean module-qtwebview-clean module-qttranslations-clean module-qtdoc-clean  FORCE
 distclean: module-qtbase-distclean module-qtnetworkauth-distclean module-qtmacextras-distclean module-qtx11extras-distclean module-qtandroidextras-distclean module-qtserialport-distclean module-qtserialbus-distclean module-qtimageformats-distclean module-qtactiveqt-distclean module-qtsvg-distclean module-qtdeclarative-distclean module-qtquick3d-distclean module-qtquicktimeline-distclean module-qtlottie-distclean module-qtremoteobjects-distclean module-qtscxml-distclean module-qtpurchasing-distclean module-qtwebsockets-distclean module-qtwebglplugin-distclean module-qtwebchannel-distclean module-qtgamepad-distclean module-qtwayland-distclean module-qtconnectivity-distclean module-qtsensors-distclean module-qtgraphicaleffects-distclean module-qtquickcontrols2-distclean module-qtquickcontrols-distclean module-qtxmlpatterns-distclean module-qtmultimedia-distclean module-qtspeech-distclean module-qtvirtualkeyboard-distclean module-qtdatavis3d-distclean module-qtcharts-distclean module-qtwinextras-distclean module-qttools-distclean module-qtscript-distclean module-qtwebview-distclean module-qttranslations-distclean module-qtdoc-distclean  FORCE
 	-$(DEL_FILE) Makefile
 	-$(DEL_FILE) .qmake.stash .qmake.super
 
-install_subtargets: module-qtmultimedia-install_subtargets module-qtspeech-install_subtargets module-qtvirtualkeyboard-install_subtargets module-qtdatavis3d-install_subtargets FORCE
+install_subtargets: module-qtcharts-install_subtargets module-qtwinextras-install_subtargets module-qttools-install_subtargets module-qtscript-install_subtargets module-qtwebview-install_subtargets module-qttranslations-install_subtargets module-qtdoc-install_subtargets FORCE
 
-uninstall_subtargets: module-qtmultimedia-uninstall_subtargets module-qtspeech-uninstall_subtargets module-qtvirtualkeyboard-uninstall_subtargets module-qtdatavis3d-uninstall_subtargets FORCE
+uninstall_subtargets: module-qtcharts-uninstall_subtargets module-qtwinextras-uninstall_subtargets module-qttools-uninstall_subtargets module-qtscript-uninstall_subtargets module-qtwebview-uninstall_subtargets module-qttranslations-uninstall_subtargets module-qtdoc-uninstall_subtargets FORCE
 
 html_docs:
 	$(MAKE) -f $(MAKEFILE) prepare_docs && $(MAKE) -f $(MAKEFILE) generate_docs
