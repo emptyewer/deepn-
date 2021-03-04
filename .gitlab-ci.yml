@@ -32,7 +32,7 @@ linux-docker:
      - base-docker
    script:
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - CI_PROJECT_DIR=$CI_PROJECT_DIR docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest -f $CI_PROJECT_DIR/docker/linux/Dockerfile
+      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest -f $CI_PROJECT_DIR/docker/linux/Dockerfile
       - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
 
 windows-docker:
@@ -47,7 +47,7 @@ windows-docker:
         - docker/windows/entrypoint.sh
    script:
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - CI_PROJECT_DIR=$CI_PROJECT_DIR docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest -f $CI_PROJECT_DIR/docker/windows/Dockerfile
+      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest -f $CI_PROJECT_DIR/docker/windows/Dockerfile
       - docker push $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
 
 linux-build:
@@ -56,7 +56,7 @@ linux-build:
    before_script: []
    script:
       -  docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      -  CI_PROJECT_DIR=$CI_PROJECT_DIR docker run $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
+      -  docker run $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
    dependencies:
       - linux-docker
    artifacts:
@@ -70,7 +70,7 @@ windows-build:
    before_script: []
    script:
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - CI_PROJECT_DIR=$CI_PROJECT_DIR docker run $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
+      - docker run $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
    dependencies:
       - windows-docker
    artifacts:
