@@ -1,7 +1,7 @@
 FROM registry.gitlab.com/emptyewer/deepn-plus/base:latest
 
 # QT Compile and Install
-RUN make -j8 install
+RUN make -j8 -s install
 
 WORKDIR /
 RUN rm -rf /qt
