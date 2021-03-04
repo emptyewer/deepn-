@@ -1,11 +1,12 @@
 FROM registry.gitlab.com/emptyewer/deepn-plus/base:latest
 
 # QT Compile and Install
-RUN make -j16 install
+RUN make -j8 install
+
 WORKDIR /
 RUN rm -rf /qt
 
-# Install conan 1
+# Install conan
 RUN pip3 install conan gitlab-auto-release
 RUN mkdir -p /root/.conan/profiles
 COPY docker/linux/default /root/.conan/profiles/

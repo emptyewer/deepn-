@@ -15,7 +15,6 @@ base-docker:
      - docker:dind
    tags:
       - linux
-      - docker
       - dedicated
    only:
       changes:
@@ -32,7 +31,6 @@ linux-docker:
      - docker:dind
    tags:
       - linux
-      - docker
       - dedicated
    only:
       changes:
@@ -54,8 +52,6 @@ windows-docker:
      - docker:dind
    tags:
       - linux
-      - docker
-      - mxe
       - dedicated
    only:
       changes:
