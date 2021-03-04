@@ -1,10 +1,5 @@
 stages:
    - base
-   - qt-stage1
-   - qt-stage2
-   - qt-stage3
-   - qt-stage4
-   - qt-stage5
    - docker
    - build
    - publish
@@ -18,6 +13,10 @@ base-docker:
    image: docker:latest
    services:
      - docker:dind
+   tags:
+      - linux
+      - docker
+      - dedicated
    only:
       changes:
         - docker/linux/base/Dockerfile
@@ -26,129 +25,23 @@ base-docker:
       - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/base:latest -f docker/linux/base/Dockerfile
       - docker push $CI_REGISTRY/emptyewer/deepn-plus/base:latest
 
-linux-docker-stage1:
-   stage: qt-stage1
-   image: docker:latest
-   services:
-     - docker:dind
-   only:
-      changes:
-        - docker/linux/base/Dockerfile
-        - docker/linux/stage1/Dockerfile
-   dependencies:
-     - base-docker
-   script:
-      - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage1:latest -f docker/linux/stage1/Dockerfile
-      - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage1:latest
-
-linux-docker-stage2:
-   stage: qt-stage2
-   image: docker:latest
-   services:
-     - docker:dind
-   only:
-      changes:
-        - docker/linux/base/Dockerfile
-        - docker/linux/stage1/Dockerfile
-        - docker/linux/stage2/Dockerfile
-   dependencies:
-     - base-docker
-     - linux-docker-stage1
-   script:
-      - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage2:latest -f docker/linux/stage2/Dockerfile
-      - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage2:latest
-
-linux-docker-stage3:
-   stage: qt-stage3
-   image: docker:latest
-   services:
-     - docker:dind
-   only:
-      changes:
-        - docker/linux/base/Dockerfile
-        - docker/linux/stage1/Dockerfile
-        - docker/linux/stage2/Dockerfile
-        - docker/linux/stage3/Dockerfile
-   dependencies:
-     - base-docker
-     - linux-docker-stage1
-     - linux-docker-stage2
-   script:
-      - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage3:latest -f docker/linux/stage3/Dockerfile
-      - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage3:latest
-
-linux-docker-stage4:
-   stage: qt-stage4
-   image: docker:latest
-   services:
-     - docker:dind
-   only:
-      changes:
-        - docker/linux/base/Dockerfile
-        - docker/linux/stage1/Dockerfile
-        - docker/linux/stage2/Dockerfile
-        - docker/linux/stage3/Dockerfile
-        - docker/linux/stage4/Dockerfile
-   dependencies:
-     - base-docker
-     - linux-docker-stage1
-     - linux-docker-stage2
-     - linux-docker-stage3
-   script:
-      - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage4:latest -f docker/linux/stage4/Dockerfile
-      - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage4:latest
-
-linux-docker-stage5:
-   stage: qt-stage5
-   image: docker:latest
-   services:
-     - docker:dind
-   only:
-      changes:
-        - docker/linux/base/Dockerfile
-        - docker/linux/stage1/Dockerfile
-        - docker/linux/stage2/Dockerfile
-        - docker/linux/stage3/Dockerfile
-        - docker/linux/stage4/Dockerfile
-        - docker/linux/stage5/Dockerfile
-   dependencies:
-     - base-docker
-     - linux-docker-stage1
-     - linux-docker-stage2
-     - linux-docker-stage3
-     - linux-docker-stage4
-   script:
-      - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage5:latest -f docker/linux/stage5/Dockerfile
-      - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64-stage5:latest
-
 linux-docker:
    stage: docker
    image: docker:latest
    services:
      - docker:dind
+   tags:
+      - linux
+      - docker
+      - dedicated
    only:
       changes:
         - docker/linux/base/Dockerfile
-        - docker/linux/stage1/Dockerfile
-        - docker/linux/stage2/Dockerfile
-        - docker/linux/stage3/Dockerfile
-        - docker/linux/stage4/Dockerfile
-        - docker/linux/stage5/Dockerfile
         - docker/linux/Dockerfile
         - docker/linux/default
         - docker/linux/entrypoint.sh
    dependencies:
      - base-docker
-     - linux-docker-stage1
-     - linux-docker-stage2
-     - linux-docker-stage3
-     - linux-docker-stage4
-     - linux-docker-stage5
    script:
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
       - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest -f docker/linux/Dockerfile
@@ -159,6 +52,11 @@ windows-docker:
    image: docker:latest
    services:
      - docker:dind
+   tags:
+      - linux
+      - docker
+      - mxe
+      - dedicated
    only:
       changes:
         - docker/windows/Dockerfile

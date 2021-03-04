@@ -1,4 +1,7 @@
-FROM registry.gitlab.com/emptyewer/deepn-plus/linux64-stage5:latest
+FROM registry.gitlab.com/emptyewer/deepn-plus/base:latest
+
+# QT Compile and Install
+RUN make -j16 install
 WORKDIR /
 RUN rm -rf /qt
 
