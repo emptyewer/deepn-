@@ -6,7 +6,7 @@ RUN make -j8 install
 WORKDIR /
 RUN rm -rf /qt
 
-# Install conan
+# Install conan 1
 RUN pip3 install conan gitlab-auto-release
 RUN mkdir -p /root/.conan/profiles
 COPY docker/linux/default /root/.conan/profiles/
