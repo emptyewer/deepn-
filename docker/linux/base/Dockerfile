@@ -6,7 +6,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # Ubuntu Installs
 RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -qq keyboard-configuration > /dev/null
-RUN apt-get install -y -qq  build-essential gcc axel lzip make openssl p7zip-full patch perl python ruby sed unzip wget xz-utils vim > /dev/null
+RUN apt-get install -y -qq  build-essential gcc cmake axel lzip make openssl p7zip-full patch perl python ruby sed unzip wget xz-utils vim > /dev/null
 RUN apt-get install -y -qq autoconf automake autopoint bash bison bzip2 flex g++ g++-multilib gettext git gperf intltool python3-pip > /dev/null
 RUN apt-get install -y -qq libc6-dev-i386 libgdk-pixbuf2.0-dev libltdl-dev libssl-dev libtool-bin libxml-parser-perl libclang-dev > /dev/null
 
@@ -23,4 +23,4 @@ RUN axel -n 10 -q http://mirrors.ocf.berkeley.edu/qt/archive/qt/5.15/5.15.2/sing
 RUN tar xf qt-everywhere-src-5.15.2.tar.xz
 
 WORKDIR /qt/qt-everywhere-src-5.15.2
-RUN ./configure -prefix /opt/qt5.15.2 -sysconfdir /etc/xdg -confirm-license -opensource  -static -release -platform linux-g++ -openssl-linked -dbus-linked -no-opengl -system-harfbuzz -system-sqlite -nomake examples -no-rpath -skip qtwebengine -skip qt3d -skip qtlocation
+RUN ./configure -prefix /opt/qt5.15.2 -sysconfdir /etc/xdg -confirm-license -opensource  -static -release -platform linux-g++ -system-zlib -openssl-linked -dbus-linked -no-opengl -qt-libpng -qt-libjpeg -qt-freetype -qt-pcre -qt-harfbuzz -qt-sqlite -nomake examples -no-rpath

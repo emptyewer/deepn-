@@ -1,7 +1,7 @@
 toolchain=/usr/lib/mxe/usr/x86_64-w64-mingw32.static # Adjust this path
 target_host=x86_64-w64-mingw32
-cc_compiler=/usr/lib/mxe/usr/bin/x86_64-w64-mingw32.static-gcc
-cxx_compiler=/usr/lib/mxe/usr/bin/x86_64-w64-mingw32.static-g++
+cc_compiler=/mxe/usr/bin/x86_64-w64-mingw32.static.posix-gcc
+cxx_compiler=/mxe/usr/bin/x86_64-w64-mingw32.static.posix-g++
 
 [env]
 CONAN_CMAKE_FIND_ROOT_PATH=$toolchain  # Optional, for CMake to find things in that folder
@@ -10,8 +10,8 @@ CHOST=$target_host
 AR=$target_host-ar
 AS=$target_host-as
 RANLIB=$target_host-ranlib
-CC=$target_host-$cc_compiler
-CXX=$target_host-$cxx_compiler
+CC=$cc_compiler
+CXX=$cxx_compiler
 STRIP=$target_host-strip
 RC=$target_host-windres
 
@@ -22,6 +22,6 @@ arch=x86_64
 compiler=gcc
 
 # Adjust to the gcc version of your MinGW package
-compiler.version=5.5
-compiler.libcxx=libstdc++11
+compiler.version=10.2
+compiler.libcxx=libstdc++17
 build_type=Release
