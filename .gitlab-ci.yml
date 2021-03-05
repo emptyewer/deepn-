@@ -12,17 +12,21 @@ base-docker:
    only:
       changes:
         - docker/linux/base/Dockerfile
+   variables:
+      IMAGE: $CI_REGISTRY/emptyewer/deepn-plus/base:latest
    script:
-      - docker rmi $CI_REGISTRY/emptyewer/deepn-plus/base:latest
+      - docker image inspect $IMAGE >/dev/null 2>&1 && docker rmi $IMAGE || echo "$IMAGE not present, skipping"
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/base:latest -f $CI_PROJECT_DIR/docker/linux/base/Dockerfile
-      - docker push $CI_REGISTRY/emptyewer/deepn-plus/base:latest
+      - docker build . --rm --no-cache -t $IMAGE -f $CI_PROJECT_DIR/docker/linux/base/Dockerfile
+      - docker push $IMAGE
 
 linux-docker:
    stage: docker
    tags:
       - linux
       - dedicated
+   variables:
+      IMAGE: $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
    only:
       changes:
         - docker/linux/base/Dockerfile
@@ -32,26 +36,28 @@ linux-docker:
    dependencies:
      - base-docker
    script:
-      - docker rmi $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
+      - docker image inspect $IMAGE >/dev/null 2>&1 && docker rmi $IMAGE || echo "$IMAGE not present, skipping"
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest -f $CI_PROJECT_DIR/docker/linux/Dockerfile
-      - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
+      - docker build . --rm --no-cache -t $IMAGE -f $CI_PROJECT_DIR/docker/linux/Dockerfile
+      - docker push $IMAGE
 
 windows-docker:
    stage: docker
    tags:
       - linux
       - dedicated
+   variables:
+      IMAGE: $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
    only:
       changes:
         - docker/windows/Dockerfile
         - docker/windows/default
         - docker/windows/entrypoint.sh
    script:
-      - docker rmi $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
+      - docker image inspect $IMAGE >/dev/null 2>&1 && docker rmi $IMAGE || echo "$IMAGE not present, skipping"
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest -f $CI_PROJECT_DIR/docker/windows/Dockerfile
-      - docker push $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
+      - docker build . --rm --no-cache -t $IMAGE -f $CI_PROJECT_DIR/docker/windows/Dockerfile
+      - docker push $IMAGE
 
 mac-build:
    stage: build
