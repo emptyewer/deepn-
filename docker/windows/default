@@ -1,4 +1,4 @@
-toolchain=/usr/lib/mxe/usr/x86_64-w64-mingw32.static # Adjust this path
+toolchain=/mxe/usr/x86_64-w64-mingw32.static.posix
 target_host=x86_64-w64-mingw32
 cc_compiler=/mxe/usr/bin/x86_64-w64-mingw32.static.posix-gcc
 cxx_compiler=/mxe/usr/bin/x86_64-w64-mingw32.static.posix-g++

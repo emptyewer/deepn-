@@ -59,9 +59,9 @@ mac-build:
    script:
       - cd $CI_PROJECT_DIR
       - cmake -DCMAKE_BUILD_TYPE=Release -S $CI_PROJECT_DIR -B $CI_PROJECT_DIR/build_mac_release
-      - make -j4 -C $CI_PROJECT_DIR/build_mac_release/GeneCount++
-      - make -j4 -C $CI_PROJECT_DIR/build_mac_release/JunctionMake++
-      - make -j4 -C $CI_PROJECT_DIR/build_mac_release/DEEPN++
+      - make -j4 -C $CI_PROJECT_DIR/build_mac_release GeneCount++
+      - make -j4 -C $CI_PROJECT_DIR/build_mac_release JunctionMake++
+      - make -j4 -C $CI_PROJECT_DIR/build_mac_release DEEPN++
    artifacts:
       paths:
          - $CI_PROJECT_DIR/deepn++_mac_64bit.7z
