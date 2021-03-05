@@ -13,6 +13,7 @@ base-docker:
       changes:
         - docker/linux/base/Dockerfile
    script:
+      - docker rmi $CI_REGISTRY/emptyewer/deepn-plus/base:latest
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
       - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/base:latest -f $CI_PROJECT_DIR/docker/linux/base/Dockerfile
       - docker push $CI_REGISTRY/emptyewer/deepn-plus/base:latest
@@ -31,6 +32,7 @@ linux-docker:
    dependencies:
      - base-docker
    script:
+      - docker rmi $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
       - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest -f $CI_PROJECT_DIR/docker/linux/Dockerfile
       - docker push $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
@@ -46,6 +48,7 @@ windows-docker:
         - docker/windows/default
         - docker/windows/entrypoint.sh
    script:
+      - docker rmi $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
       - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest -f $CI_PROJECT_DIR/docker/windows/Dockerfile
       - docker push $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
