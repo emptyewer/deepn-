@@ -1,7 +1,7 @@
 FROM venkykrishna/mxe:latest
 
 # MXE installs
-RUN make -j8 qt5 armadillo 
+RUN make -j8 qt5 armadillo cmake
 
 # Install conan
 RUN pip3 install conan gitlab-auto-release

@@ -1,7 +1,7 @@
-toolchain=/mxe/usr/x86_64-w64-mingw32.static.posix
+toolchain=/mxe/usr/x86_64-w64-mingw32.static
 target_host=x86_64-w64-mingw32
-cc_compiler=/mxe/usr/bin/x86_64-w64-mingw32.static.posix-gcc
-cxx_compiler=/mxe/usr/bin/x86_64-w64-mingw32.static.posix-g++
+cc_compiler=/mxe/usr/bin/x86_64-w64-mingw32.static-gcc
+cxx_compiler=/mxe/usr/bin/x86_64-w64-mingw32.static-g++
 
 [env]
 CONAN_CMAKE_FIND_ROOT_PATH=$toolchain  # Optional, for CMake to find things in that folder
