@@ -50,6 +50,23 @@ windows-docker:
       - docker build . --rm --no-cache -t $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest -f $CI_PROJECT_DIR/docker/windows/Dockerfile
       - docker push $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
 
+mac-build:
+   stage: build
+   tags:
+      - dedicated
+      - mac
+      - catalina
+   script:
+      - cd $CI_PROJECT_DIR
+      - cmake -DCMAKE_BUILD_TYPE=Release -S $CI_PROJECT_DIR -B $CI_PROJECT_DIR/build_mac_release
+      - make -j4 -C $CI_PROJECT_DIR/build_mac_release/GeneCount++
+      - make -j4 -C $CI_PROJECT_DIR/build_mac_release/JunctionMake++
+      - make -j4 -C $CI_PROJECT_DIR/build_mac_release/DEEPN++
+   artifacts:
+      paths:
+         - $CI_PROJECT_DIR/deepn++_mac_64bit.7z
+      expire_in: '1 hour'
+
 linux-build:
    stage: build
    image: $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
