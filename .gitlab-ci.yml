@@ -103,4 +103,4 @@ publish:
       - windows-build
    before_script: []
    script:
-        - gitlab-release --message "Latest Release ($(date))" $CI_PROJECT_DIR/deepn++_linux_64bit.7z $CI_PROJECT_DIR/deepn++_windows_64bit.7z
+        - gitlab-release --message "Latest Release ($(date))" $CI_PROJECT_DIR/deepn++_linux_64bit.7z $CI_PROJECT_DIR/deepn++_windows_64bit.7z $CI_PROJECT_DIR/deepn++_mac_64bit.7z

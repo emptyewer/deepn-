@@ -15,7 +15,7 @@ RUN apt-get update
 RUN apt-get install -y mxe-x86-64-w64-mingw32.static-qt5 mxe-x86-64-w64-mingw32.static-armadillo p7zip-full python3-pip vim
 RUN apt-get clean autoclean && apt-get autoremove --yes && rm -rf /var/lib/{apt,dpkg,cache,log}/
 
-# Install conans
+# Install conan 
 RUN pip3 install conan gitlab-auto-release
 RUN mkdir -p /root/.conan/profiles
 COPY docker/windows/default /root/.conan/profiles/
