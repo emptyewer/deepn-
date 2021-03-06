@@ -3,7 +3,7 @@ FROM venkykrishna/mxe:latest
 # MXE installs
 RUN make -j8 qt5 armadillo cmake
 
-# Install conan
+# Install conan 
 RUN pip3 install conan gitlab-auto-release
 RUN mkdir -p /root/.conan/profiles
 COPY docker/windows/default /root/.conan/profiles/

@@ -65,12 +65,14 @@ mac-build:
       - dedicated
       - mac
       - catalina
+   variables:
+      BUILD_DIR: $CI_PROJECT_DIR/build_mac_release
    script:
       - cd $CI_PROJECT_DIR
-      - cmake -DCMAKE_BUILD_TYPE=Release -S $CI_PROJECT_DIR -B $CI_PROJECT_DIR/build_mac_release
-      - make -j4 -C $CI_PROJECT_DIR/build_mac_release GeneCount++
-      - make -j4 -C $CI_PROJECT_DIR/build_mac_release JunctionMake++
-      - make -j4 -C $CI_PROJECT_DIR/build_mac_release DEEPN++
+      - cmake -DCMAKE_BUILD_TYPE=Release -S $CI_PROJECT_DIR -B $BUILD_DIR
+      - make -j4 -C $BUILD_DIR GeneCount++
+      - make -j4 -C $BUILD_DIR JunctionMake++
+      - make -j4 -C $BUILD_DIR DEEPN++
    artifacts:
       paths:
          - $CI_PROJECT_DIR/deepn++_mac_64bit.7z
@@ -110,6 +112,7 @@ publish:
    dependencies:
       - linux-build
       - windows-build
+      - mac-build
    before_script: []
    script:
         - gitlab-release --message "Latest Release ($(date))" $CI_PROJECT_DIR/deepn++_linux_64bit.7z $CI_PROJECT_DIR/deepn++_windows_64bit.7z $CI_PROJECT_DIR/deepn++_mac_64bit.7z
