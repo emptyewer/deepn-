@@ -49,5 +49,3 @@ else()
 endif()
 
 target_link_libraries(${EXECUTABLE} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets ${CONAN_LIBS_RELEASE})
-
-

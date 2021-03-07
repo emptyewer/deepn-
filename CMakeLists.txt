@@ -34,7 +34,7 @@ if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan.cmake")
 endif()
 
 include(${CMAKE_BINARY_DIR}/conan.cmake)
-conan_cmake_configure(REQUIRES fmt/6.1.2 boost/1.75.0 spdlog/1.8.2 nlohmann_json/3.9.1 yaml-cpp/0.6.3 seqan/2.4.0 GENERATORS cmake_find_package)
+conan_cmake_configure(REQUIRES seqan/2.4.0 GENERATORS cmake_find_package)
 conan_cmake_autodetect(settings)
 conan_cmake_install(PATH_OR_REFERENCE .
                     BUILD missing
