@@ -107,8 +107,8 @@ publish:
    image: venkykrishna/gitlab-release
    stage: publish
    dependencies:
-      - linux-build
-      - windows-build
+      # - linux-build
+      # - windows-build
       - mac-build
    before_script: []
    script:
