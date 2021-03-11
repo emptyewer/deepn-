@@ -4,6 +4,9 @@ stages:
    - build
    - publish
 
+variables:
+   BUILD_ENV_FILE: /builds/emptyewer/deepn-plus/env_vars
+
 base-docker:
    stage: base
    tags:
@@ -67,48 +70,55 @@ mac-build:
       - catalina
    variables:
       BUILD_DIR: $CI_PROJECT_DIR/build_mac_release
+   before_script:
+     - source $BUILD_DIR/env_vars
+     - export MAC_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_mac_64bit.7z
    script:
-      - /usr/local/Cellar/qt@5/5.15.2/bin/qmake -o $BUILD_DIR/Makefile $CI_PROJECT_DIR/deepn++.pro -spec macx-clang CONFIG+=x86_64 CONFIG-=qtquickcompiler
+      - /usr/local/Cellar/qt@5/5.15.2/bin/qmake -o $BUILD_DIR/Makefile $CI_PROJECT_DIR/$PROJECT_FILE -spec macx-clang CONFIG+=x86_64 CONFIG-=qtquickcompiler
       - make -j4 -C $BUILD_DIR qmake_all
       - make -j4 -C $BUILD_DIR/deepn
       - make -j4 -C $BUILD_DIR/gene_count
       - make -j4 -C $BUILD_DIR/junction_make
-      - cp -R -f $BUILD_DIR/deepn/DEEPN.app $BUILD_DIR/DEEPN++.app
-      - mkdir -p $BUILD_DIR/DEEPN++.app/Contents/Apps/
-      - cp -R -f $BUILD_DIR/gene_count/GeneCount.app $BUILD_DIR/DEEPN++.app/Contents/Apps/GeneCount++.app
-      - cp -R -f $BUILD_DIR/junction_make/JunctionMake.app $BUILD_DIR/DEEPN++.app/Contents/Apps/JunctionMake++.app
-      - 7z a -m0=ppmd -mx=9 $CI_PROJECT_DIR/deepn++_mac_64bit.7z $BUILD_DIR/DEEPN++.app
+      - cp -R -f $BUILD_DIR/deepn/DEEPN.app $BUILD_DIR/DEEPN.app
+      - mkdir -p $BUILD_DIR/DEEPN.app/Contents/Apps/
+      - cp -R -f $BUILD_DIR/gene_count/GeneCount.app $BUILD_DIR/DEEPN.app/Contents/Apps/GeneCount.app
+      - cp -R -f $BUILD_DIR/junction_make/JunctionMake.app $BUILD_DIR/DEEPN.app/Contents/Apps/JunctionMake.app
+      - 7z a -m0=ppmd -mx=9 $CI_PROJECT_DIR/$MAC_COMPILED_OUTPUT $BUILD_DIR/DEEPN.app
    artifacts:
       paths:
-         - $CI_PROJECT_DIR/deepn++_mac_64bit.7z
+         - $CI_PROJECT_DIR/$MAC_COMPILED_OUTPUT
       expire_in: '1 hour'
 
 linux-build:
    stage: build
    image: $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
-   before_script: []
+   before_script:
+     - source $BUILD_DIR/env_vars
+     - export LINUX_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_linux_64bit.7z
    script:
       -  docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      -  docker run $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
+      -  docker run --rm --env-file=$BUILD_ENV_FILE $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
    dependencies:
       - linux-docker
    artifacts:
       paths:
-         - $CI_PROJECT_DIR/deepn++_linux_64bit.7z
+         - $CI_PROJECT_DIR/$LINUX_COMPILED_OUTPUT
       expire_in: '1 hour'
 
 windows-build:
    stage: build
    image: $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
-   before_script: []
+   before_script:
+     - source $BUILD_DIR/env_vars
+     - export WINDOWS_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_windows_64bit.7z
    script:
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker run $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
+      - docker run --rm --env-file=$BUILD_ENV_FILE $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
    dependencies:
       - windows-docker
    artifacts:
       paths:
-         - $CI_PROJECT_DIR/deepn++_windows_64bit.7z
+         - $CI_PROJECT_DIR/$WINDOWS_COMPILED_OUTPUT
       expire_in: '1 hour'
 
 publish:
@@ -120,4 +130,4 @@ publish:
       - mac-build
    before_script: []
    script:
-        - gitlab-release --message "Latest Release ($(date))" $CI_PROJECT_DIR/deepn++_linux_64bit.7z $CI_PROJECT_DIR/deepn++_windows_64bit.7z $CI_PROJECT_DIR/deepn++_mac_64bit.7z
+        - gitlab-release --message "Latest Release ($(date))" $CI_PROJECT_DIR/$LINUX_COMPILED_OUTPUT $CI_PROJECT_DIR/$WINDOWS_COMPILED_OUTPUT $CI_PROJECT_DIR/$MAC_COMPILED_OUTPUT
