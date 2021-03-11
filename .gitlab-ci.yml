@@ -77,46 +77,46 @@ mac-build:
       - mkdir -p $BUILD_DIR/DEEPN++.app/Contents/Apps/
       - cp -R -f $BUILD_DIR/gene_count/GeneCount.app $BUILD_DIR/DEEPN++.app/Contents/Apps/GeneCount++.app
       - cp -R -f $BUILD_DIR/junction_make/JunctionMake.app $BUILD_DIR/DEEPN++.app/Contents/Apps/JunctionMake++.app
-      - 7z a -m0=ppmd -mx=9 $BUILD_DIR/deepn++_linux_64bit.7z $BUILD_DIR/DEEPN++.app
+      - 7z a -m0=ppmd -mx=9 $CI_PROJECT_DIR/deepn++_mac_64bit.7z $BUILD_DIR/DEEPN++.app
    artifacts:
       paths:
-         - $BUILD_DIR/deepn++_mac_64bit.7z
+         - $CI_PROJECT_DIR/deepn++_mac_64bit.7z
       expire_in: '1 hour'
 
-# linux-build:
-#    stage: build
-#    image: $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
-#    before_script: []
-#    script:
-#       -  docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-#       -  docker run $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
-#    dependencies:
-#       - linux-docker
-#    artifacts:
-#       paths:
-#          - $CI_PROJECT_DIR/deepn++_linux_64bit.7z
-#       expire_in: '1 hour'
+linux-build:
+   stage: build
+   image: $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
+   before_script: []
+   script:
+      -  docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
+      -  docker run $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
+   dependencies:
+      - linux-docker
+   artifacts:
+      paths:
+         - $CI_PROJECT_DIR/deepn++_linux_64bit.7z
+      expire_in: '1 hour'
 
-# windows-build:
-#    stage: build
-#    image: $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
-#    before_script: []
-#    script:
-#       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-#       - docker run $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
-#    dependencies:
-#       - windows-docker
-#    artifacts:
-#       paths:
-#          - $CI_PROJECT_DIR/deepn++_windows_64bit.7z
-#       expire_in: '1 hour'
+windows-build:
+   stage: build
+   image: $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
+   before_script: []
+   script:
+      - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
+      - docker run $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
+   dependencies:
+      - windows-docker
+   artifacts:
+      paths:
+         - $CI_PROJECT_DIR/deepn++_windows_64bit.7z
+      expire_in: '1 hour'
 
 publish:
    image: venkykrishna/gitlab-release
    stage: publish
    dependencies:
-      # - linux-build
-      # - windows-build
+      - linux-build
+      - windows-build
       - mac-build
    before_script: []
    script:
