@@ -5,8 +5,9 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Ubuntu Installs 
 RUN apt-get update
+RUN apt-get install -y -qq apt-utils
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -qq keyboard-configuration > /dev/null
-RUN apt-get install -y -qq apt-utils build-essential gcc cmake axel lzip make openssl p7zip-full patch perl python ruby sed unzip wget xz-utils vim > /dev/null
+RUN apt-get install -y -qq build-essential gcc cmake axel lzip make openssl p7zip-full patch perl python ruby sed unzip wget xz-utils vim > /dev/null
 RUN apt-get install -y -qq autoconf automake autopoint bash bison bzip2 flex g++ g++-multilib gettext git gperf intltool python3-pip > /dev/null
 RUN apt-get install -y -qq libc6-dev-i386 libgdk-pixbuf2.0-dev libltdl-dev libssl-dev libtool-bin libxml-parser-perl libclang-dev > /dev/null
 
