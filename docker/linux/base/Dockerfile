@@ -23,4 +23,4 @@ RUN axel -n 10 -q http://mirrors.ocf.berkeley.edu/qt/archive/qt/5.15/5.15.2/sing
 RUN tar xf qt-everywhere-src-5.15.2.tar.xz
 
 WORKDIR /qt/qt-everywhere-src-5.15.2
-RUN ./configure -prefix /opt/qt5.15.2 -sysconfdir /etc/xdg -confirm-license -opensource  -static -release -platform linux-g++ -system-zlib -dbus-linked -openssl-linked -no-opengl -qt-libpng -qt-libjpeg -qt-freetype -qt-pcre -qt-harfbuzz -qt-sqlite -nomake examples -no-rpath -skip qtwebengine -skip qt3d -skip qtlocation
+RUN ./configure -prefix /opt/qt5.15.2 -sysconfdir /etc/xdg -confirm-license -opensource  -static -release -platform linux-g++-64 -system-zlib -dbus-linked -openssl-linked -no-opengl -qt-libpng -qt-libjpeg -system-freetype -qt-pcre -qt-harfbuzz -qt-sqlite -nomake examples -no-rpath -skip qtwebengine -skip qt3d -skip qtlocation
