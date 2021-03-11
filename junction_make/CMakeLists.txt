@@ -13,6 +13,10 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15")
 set(CONAN_DISABLE_CHECK_COMPILER TRUE)
 
+# add conan
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+conan_basic_setup()
+
 find_package(QT NAMES Qt5 COMPONENTS Widgets REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
 
@@ -24,14 +28,6 @@ set(PROJECT_SOURCES
 )
 
 set(EXECUTABLE "${PROJECT_NAME}")
-
-include(${CMAKE_BINARY_DIR}/conan.cmake)
-conan_cmake_configure(REQUIRES seqan/2.4.0 GENERATORS cmake_find_package)
-conan_cmake_autodetect(settings)
-conan_cmake_install(PATH_OR_REFERENCE .
-                    BUILD missing
-                    REMOTE conan-center
-                    SETTINGS ${settings})
 
 # OS Specific configurations
 if (APPLE)

@@ -472,7 +472,7 @@
   <customwidget>
    <class>DQTextEdit</class>
    <extends>QPlainTextEdit</extends>
-   <header>deepn/dqtextedit.h</header>
+   <header>dqtextedit.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

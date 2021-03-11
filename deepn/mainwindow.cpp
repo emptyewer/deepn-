@@ -1,5 +1,8 @@
 #include <QDebug>
+#include <plog/Log.h>
+#include "seqan/sequence.h"
 #include <QSysInfo>
+#include <QCoreApplication>
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 

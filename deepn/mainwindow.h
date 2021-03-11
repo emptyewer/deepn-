@@ -18,7 +18,7 @@ public:
   ~MainWindow();
 
 private slots:
-  void on_gene_count_btn_clicked();
+  static void on_gene_count_btn_clicked();
 
   void on_junction_make_btn_clicked();
 
