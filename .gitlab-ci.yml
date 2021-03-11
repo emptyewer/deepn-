@@ -68,11 +68,19 @@ mac-build:
    variables:
       BUILD_DIR: $CI_PROJECT_DIR/build_mac_release
    script:
-      - /usr/local/Cellar/qt@5/5.15.2/bin/qmake -o $CI_PROJECT_DIR/build_mac_release/Makefile $CI_PROJECT_DIR/deepn++.pro spec macx-clang CONFIG+=x86_64 CONFIG-=qtquickcompiler
-      - make -j4 -C $CI_PROJECT_DIR/build_mac_release qmake_all
+      - /usr/local/Cellar/qt@5/5.15.2/bin/qmake -o $BUILD_DIR/Makefile $CI_PROJECT_DIR/deepn++.pro -spec macx-clang CONFIG+=x86_64 CONFIG-=qtquickcompiler
+      - make -j4 -C $BUILD_DIR qmake_all
+      - make -j4 -C $BUILD_DIR/deepn
+      - make -j4 -C $BUILD_DIR/gene_count
+      - make -j4 -C $BUILD_DIR/junction_make
+      - cp -R -f $BUILD_DIR/deepn/DEEPN.app $BUILD_DIR/DEEPN++.app
+      - mkdir -p $BUILD_DIR/DEEPN++.app/Contents/Apps/
+      - cp -R -f $BUILD_DIR/gene_count/GeneCount.app $BUILD_DIR/DEEPN++.app/Contents/Apps/GeneCount++.app
+      - cp -R -f $BUILD_DIR/junction_make/JunctionMake.app $BUILD_DIR/DEEPN++.app/Contents/Apps/JunctionMake++.app
+      - 7z a -m0=ppmd -mx=9 $BUILD_DIR/deepn++_linux_64bit.7z $BUILD_DIR/DEEPN++.app
    artifacts:
       paths:
-         - $CI_PROJECT_DIR/deepn++_mac_64bit.7z
+         - $BUILD_DIR/deepn++_mac_64bit.7z
       expire_in: '1 hour'
 
 # linux-build:
