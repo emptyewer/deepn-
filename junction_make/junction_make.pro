@@ -1,0 +1,49 @@
+QT       += core gui
+
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+
+CONFIG += c++17 conan_basic_setup
+
+TARGET = JunctionMake
+
+include(../config.pri)
+# You can make your code fail to compile if it uses deprecated APIs.
+# In order to do so, uncomment the following line.
+#DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+
+# Conan setup
+CONFIG(debug, debug|release){
+    BUILD_TYPE = Debug
+} else {
+    BUILD_TYPE = Release
+}
+
+system($$CONAN_EXECUTABLE install -s build_type=$$BUILD_TYPE -if $$OUT_PWD -g qmake $$PWD/conanfile.txt)
+include($$OUT_PWD/conanbuildinfo.pri)
+
+SOURCES += \
+    main.cpp \
+    mainwindow.cpp \
+
+
+HEADERS += \
+    mainwindow.h \
+
+FORMS += \
+    mainwindow.ui
+
+# Default rules for deployment
+macx {
+    ICON = ../icons/junction_make.icns
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.15
+    QMAKE_LFLAGS += -Bstatic
+}
+
+
+win32 {
+    ICON = ../icons/junction_make.ico
+    QMAKE_LFLAGS += -static
+}
+
+unix {
+}
