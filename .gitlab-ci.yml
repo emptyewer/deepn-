@@ -4,9 +4,6 @@ stages:
    - build
    - publish
 
-variables:
-   BUILD_ENV_FILE: /builds/emptyewer/deepn-plus/env_vars
-
 base-docker:
    stage: base
    tags:
@@ -71,7 +68,7 @@ mac-build:
    variables:
       BUILD_DIR: $CI_PROJECT_DIR/build_mac_release
    before_script:
-     - source $BUILD_DIR/env_vars
+     - source $CI_PROJECT_DIR/env_vars
      - export MAC_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_mac_64bit.7z
    script:
       - /usr/local/Cellar/qt@5/5.15.2/bin/qmake -o $BUILD_DIR/Makefile $CI_PROJECT_DIR/$PROJECT_FILE -spec macx-clang CONFIG+=x86_64 CONFIG-=qtquickcompiler
@@ -93,11 +90,11 @@ linux-build:
    stage: build
    image: $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
    before_script:
-     - source $BUILD_DIR/env_vars
+     - source $CI_PROJECT_DIR/env_vars
      - export LINUX_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_linux_64bit.7z
    script:
       -  docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      -  docker run --rm --env-file=$BUILD_ENV_FILE $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
+      -  docker run --rm --env-file=$CI_PROJECT_DIR/env_vars $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
    dependencies:
       - linux-docker
    artifacts:
@@ -109,11 +106,11 @@ windows-build:
    stage: build
    image: $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
    before_script:
-     - source $BUILD_DIR/env_vars
+     - source $CI_PROJECT_DIR/env_vars
      - export WINDOWS_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_windows_64bit.7z
    script:
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker run --rm --env-file=$BUILD_ENV_FILE $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
+      - docker run --rm --env-file=$CI_PROJECT_DIR/env_vars $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
    dependencies:
       - windows-docker
    artifacts:
