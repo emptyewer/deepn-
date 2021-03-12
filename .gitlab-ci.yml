@@ -88,17 +88,14 @@ mac-build:
 
 linux-build:
    stage: build
-   image: $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
    tags:
       - linux
       - dedicated
    script:
-      - echo $CI_PROJECT_DIR
       - source $CI_PROJECT_DIR/env_vars
       - export LINUX_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_linux_64bit.7z
-      - echo $LINUX_COMPILED_OUTPUT
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker run --rm -e ROOT_DIR=$ROOT_DIR -e PROJECT_FILE=$PROJECT_FILE $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
+      - docker run --rm -v $CI_PROJECT_DIR:$ROOT_DIR -e ROOT_DIR=$ROOT_DIR -e PROJECT_FILE=$PROJECT_FILE $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
    dependencies:
       - linux-docker
    artifacts:
@@ -108,7 +105,6 @@ linux-build:
 
 windows-build:
    stage: build
-   image: $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
    tags:
       - linux
       - dedicated
@@ -116,7 +112,7 @@ windows-build:
       - source $CI_PROJECT_DIR/env_vars
       - export WINDOWS_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_windows_64bit.7z
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker run --rm -e ROOT_DIR=$ROOT_DIR -e PROJECT_FILE=$PROJECT_FILE $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
+      - docker run --rm -v $CI_PROJECT_DIR:$ROOT_DIR -e ROOT_DIR=$ROOT_DIR -e PROJECT_FILE=$PROJECT_FILE $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
    dependencies:
       - windows-docker
    artifacts:
@@ -127,14 +123,13 @@ windows-build:
 publish:
    image: venkykrishna/gitlab-release
    stage: publish
-   before_script:
-     - source $CI_PROJECT_DIR/env_vars
-     - export WINDOWS_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_windows_64bit.7z
-     - export LINUX_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_linux_64bit.7z
-     - export MAC_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_mac_64bit.7z
    dependencies:
       - linux-build
       - windows-build
       - mac-build
    script:
-        - gitlab-release --message "Latest Release ($(date))" $CI_PROJECT_DIR/$LINUX_COMPILED_OUTPUT $CI_PROJECT_DIR/$WINDOWS_COMPILED_OUTPUT $CI_PROJECT_DIR/$MAC_COMPILED_OUTPUT
+     - source $CI_PROJECT_DIR/env_vars
+     - export WINDOWS_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_windows_64bit.7z
+     - export LINUX_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_linux_64bit.7z
+     - export MAC_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_mac_64bit.7z
+     - gitlab-release --message "Latest Release ($(date))" $CI_PROJECT_DIR/$LINUX_COMPILED_OUTPUT $CI_PROJECT_DIR/$WINDOWS_COMPILED_OUTPUT $CI_PROJECT_DIR/$MAC_COMPILED_OUTPUT
