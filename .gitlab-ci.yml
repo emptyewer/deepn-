@@ -83,7 +83,7 @@ mac-build:
       - 7z a -m0=ppmd -mx=9 $CI_PROJECT_DIR/$MAC_COMPILED_OUTPUT $BUILD_DIR/DEEPN.app
    artifacts:
       paths:
-         - $CI_PROJECT_DIR/$MAC_COMPILED_OUTPUT
+         - $CI_PROJECT_DIR/
       expire_in: '1 hour'
 
 linux-build:
@@ -93,14 +93,13 @@ linux-build:
       - dedicated
    script:
       - source $CI_PROJECT_DIR/env_vars
-      - export LINUX_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_linux_64bit.7z
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
       - docker run --rm -v $CI_PROJECT_DIR:$ROOT_DIR -e ROOT_DIR=$ROOT_DIR -e PROJECT_FILE=$PROJECT_FILE $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
    dependencies:
       - linux-docker
    artifacts:
       paths:
-         - $CI_PROJECT_DIR/$LINUX_COMPILED_OUTPUT
+         - $CI_PROJECT_DIR/
       expire_in: '1 hour'
 
 windows-build:
@@ -110,14 +109,13 @@ windows-build:
       - dedicated
    script:
       - source $CI_PROJECT_DIR/env_vars
-      - export WINDOWS_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_windows_64bit.7z
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
       - docker run --rm -v $CI_PROJECT_DIR:$ROOT_DIR -e ROOT_DIR=$ROOT_DIR -e PROJECT_FILE=$PROJECT_FILE $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
    dependencies:
       - windows-docker
    artifacts:
       paths:
-         - $CI_PROJECT_DIR/$WINDOWS_COMPILED_OUTPUT
+         - $CI_PROJECT_DIR/
       expire_in: '1 hour'
 
 publish:
