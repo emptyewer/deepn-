@@ -1,6 +1,6 @@
 FROM venkykrishna/mxe:latest
 
-# MXE installs
+# MXE installs 
 RUN make -j8 qt5 armadillo cmake
 
 # Install conan 
