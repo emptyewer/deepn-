@@ -11,3 +11,4 @@ test
 .idea/
 **.pro.user
 Makefile
+nohup.out
