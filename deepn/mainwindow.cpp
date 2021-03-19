@@ -29,12 +29,12 @@ void MainWindow::on_gene_count_btn_clicked()
     if (QSysInfo::productType() == "osx" || QSysInfo::productType() == "macos") {
         application_directory.cdUp();
         application_directory.cdUp();
-        gene_count_path = appendPath(application_directory.path(), "Contents/Apps/GeneCount++.app/Contents/MacOS/GeneCount++");
+        gene_count_path = appendPath(application_directory.path(), "Contents/Apps/GeneCount++.app/Contents/MacOS/GeneCount");
 
     } else if (QSysInfo::productType() == "windows" || QSysInfo::productType() == "winrt") {
-        gene_count_path = appendPath(application_directory.path(), "gene_count/GeneCount++.exe");
+        gene_count_path = appendPath(application_directory.path(), "gene_count/GeneCount.exe");
     } else {
-        gene_count_path = appendPath(application_directory.path(), "gene_count/GeneCount++");
+        gene_count_path = appendPath(application_directory.path(), "gene_count/GeneCount");
     }
     QProcess::startDetached(QDir::toNativeSeparators(gene_count_path));
 }
@@ -47,11 +47,11 @@ void MainWindow::on_junction_make_btn_clicked()
     if (QSysInfo::productType() == "osx" || QSysInfo::productType() == "macos") {
         application_directory.cdUp();
         application_directory.cdUp();
-        junction_make_path = appendPath(application_directory.path(), "/Contents/Apps/JunctionMake++.app/Contents/MacOS/JunctionMake++");
+        junction_make_path = appendPath(application_directory.path(), "/Contents/Apps/JunctionMake++.app/Contents/MacOS/JunctionMake");
     } else if (QSysInfo::productType() == "windows" || QSysInfo::productType() == "winrt") {
-        junction_make_path = appendPath(application_directory.path(), "junction_make/JunctionMake++.exe");
+        junction_make_path = appendPath(application_directory.path(), "junction_make/JunctionMake.exe");
     } else {
-        junction_make_path = appendPath(application_directory.path(), "junction_make/JunctionMake++");
+        junction_make_path = appendPath(application_directory.path(), "junction_make/JunctionMake");
     }
     QProcess::startDetached(QDir::toNativeSeparators(junction_make_path));
 }
