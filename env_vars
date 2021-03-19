@@ -1,2 +1,2 @@
-ROOT_DIR=/builds/emptyewer/deepn-plus
+ROOT_DIR=/home/gitlab-runner/builds/emptyewer/deepn-plus
 PROJECT_FILE=deepn++.pro
