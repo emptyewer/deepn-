@@ -1,8 +1,0 @@
-[requires]
-plog/1.1.5
-
-[generators]
-cmake
-qmake
-
-[options]

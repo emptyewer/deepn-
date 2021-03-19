@@ -71,6 +71,7 @@ mac-build:
      - source $CI_PROJECT_DIR/env_vars
      - export MAC_COMPILED_OUTPUT=${PROJECT_FILE%%.*}_mac_64bit.7z
    script:
+      - conan install -b "*" -s build_type=Release -if $BUILD_DIR -g qmake $CI_PROJECT_DIR/conanfile.txt
       - /usr/local/Cellar/qt@5/5.15.2/bin/qmake -o $BUILD_DIR/Makefile $CI_PROJECT_DIR/$PROJECT_FILE -spec macx-clang CONFIG+=x86_64 CONFIG-=qtquickcompiler
       - make -j4 -C $BUILD_DIR qmake_all
       - make -j4 -C $BUILD_DIR/deepn
@@ -94,7 +95,7 @@ linux-build:
    script:
       - source $CI_PROJECT_DIR/env_vars
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker run --rm --user $(id -u):$(id -g) -v $CI_PROJECT_DIR:$ROOT_DIR -e ROOT_DIR=$ROOT_DIR -e PROJECT_FILE=$PROJECT_FILE $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
+      - docker run --rm -v $CI_PROJECT_DIR:$ROOT_DIR -e ROOT_DIR=$ROOT_DIR -e PROJECT_FILE=$PROJECT_FILE $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
    dependencies:
       - linux-docker
    artifacts:

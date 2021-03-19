@@ -7,6 +7,8 @@ echo "Project filename: " $PROJECT_FILE
 echo "Compiled executable filename: " $COMPILED_OUTPUT
 BUILD_DIR=$ROOT_DIR/build_windows_release
 rm -rf $ROOT_DIR/build_windows_release && mkdir -p $BUILD_DIR
+
+conan install -b "*" -s build_type=Release -if $BUILD_DIR -g qmake $ROOT_DIR/conanfile.txt
 /mxe/usr/bin/x86_64-w64-mingw32.static-qmake-qt5 -o $BUILD_DIR/Makefile $ROOT_DIR/$PROJECT_FILE -spec win32-g++ CONFIG+=x86_64 CONFIG-=qtquickcompiler
 make -j4 -C $BUILD_DIR qmake_all
 for d in $BUILD_DIR/* ; do
