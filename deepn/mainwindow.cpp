@@ -1,5 +1,5 @@
 #include <QDebug>
-#include <plog/Log.h>
+//#include <plog/Log.h>
 #include <QSysInfo>
 #include <QCoreApplication>
 #include "mainwindow.h"
