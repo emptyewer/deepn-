@@ -95,7 +95,7 @@ linux-build:
    script:
       - source $CI_PROJECT_DIR/env_vars
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker run --rm --user gitlab-runner:gitlab-runner -v $CI_PROJECT_DIR:$ROOT_DIR -e ROOT_DIR=$ROOT_DIR -e PROJECT_FILE=$PROJECT_FILE $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
+      - docker run --rm --user $(id gitlab-runner -u):$(id gitlab-runner -g) -v $CI_PROJECT_DIR:$ROOT_DIR -e ROOT_DIR=$ROOT_DIR -e PROJECT_FILE=$PROJECT_FILE $CI_REGISTRY/emptyewer/deepn-plus/linux64:latest
    dependencies:
       - linux-docker
    artifacts:
@@ -111,7 +111,7 @@ windows-build:
    script:
       - source $CI_PROJECT_DIR/env_vars
       - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
-      - docker run --rm --user gitlab-runner:gitlab-runner -v $CI_PROJECT_DIR:$ROOT_DIR -e ROOT_DIR=$ROOT_DIR -e PROJECT_FILE=$PROJECT_FILE $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
+      - docker run --rm --user $(id gitlab-runner -u):$(id gitlab-runner -g) -v $CI_PROJECT_DIR:$ROOT_DIR -e ROOT_DIR=$ROOT_DIR -e PROJECT_FILE=$PROJECT_FILE $CI_REGISTRY/emptyewer/deepn-plus/windows64:latest
    dependencies:
       - windows-docker
    artifacts:

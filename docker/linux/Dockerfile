@@ -6,7 +6,7 @@ RUN make -j8 -s install
 WORKDIR /
 RUN rm -rf /qt
 
-RUN useradd -m gitlab-runner
+RUN useradd -m gitlab-runner -u $(id gitlab-runner -u) -g $(id gitlab-runner -g)
 
 # Install conan 
 RUN pip3 install conan gitlab-auto-release
