@@ -12,3 +12,11 @@ test
 **.pro.user
 Makefile
 nohup.out
+.qtc_clangd/
+conan.lock
+conanbuildinfo.cmake
+conanbuildinfo.pri
+conanbuildinfo.txt
+conaninfo.txt
+graph_info.json
+mac-release

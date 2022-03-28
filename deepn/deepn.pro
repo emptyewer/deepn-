@@ -11,7 +11,7 @@ include(../config.pri)
 # In order to do so, uncomment the following line.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
-include($$OUT_PWD/../conanbuildinfo.pri)
+include(../conanbuildinfo.pri)
 
 SOURCES += \
     main.cpp \
@@ -31,7 +31,6 @@ macx {
     QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.15
     QMAKE_LFLAGS += -Bstatic
 }
-
 
 win32 {
     ICON = ../icons/deepn.ico
