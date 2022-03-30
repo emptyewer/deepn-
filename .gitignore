@@ -20,3 +20,5 @@ conanbuildinfo.txt
 conaninfo.txt
 graph_info.json
 mac-release
+release_*
+debug_*

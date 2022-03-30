@@ -2,6 +2,7 @@ QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
+CONFIG+=sdk_no_version_check
 CONFIG += c++17 conan_basic_setup
 
 TARGET = JunctionMake
