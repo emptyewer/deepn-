@@ -47,8 +47,3 @@ DISTFILES += \
     python/another.py \
     python/gene_count.py
 
-copydata.commands = $(COPY_DIR) $$PWD/python/*.py $$OUT_PWD/GeneCount.app/Contents/MacOS/
-first.depends = $(first) copydata
-export(first.depends)
-export(copydata.commands)
-QMAKE_EXTRA_TARGETS += first copydata
