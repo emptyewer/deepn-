@@ -5,7 +5,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += sdk_no_version_check
 CONFIG += c++17 conan_basic_setup
 
-TARGET = GeneCount
+TARGET = GeneCount++
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.

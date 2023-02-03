@@ -11,15 +11,13 @@ QT_END_NAMESPACE
 class MainWindow : public QMainWindow {
   Q_OBJECT
 
-public:
+ public:
   MainWindow(QWidget *parent = nullptr);
   ~MainWindow();
 
  private slots:
-  void on_pushButton_clicked();
 
-private:
+ private:
   Ui::MainWindow *ui;
-  void initializePython();
 };
 #endif  // MAINWINDOW_H_GENECOUNT
