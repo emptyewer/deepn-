@@ -1,4 +1,7 @@
-build*
+build-*
+build_*
+pythonqt/.github
+pythonqt/build/
 deepn.pro.user
 .qmake.stash
 .DS_Store
