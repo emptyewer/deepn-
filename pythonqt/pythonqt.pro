@@ -1,4 +1,4 @@
 TEMPLATE = subdirs
 
-CONFIG += ordered
 SUBDIRS = generator src extensions
+extensions.depends += src

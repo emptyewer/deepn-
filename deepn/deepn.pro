@@ -11,7 +11,6 @@ include(../config.pri)
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
-
 include(../conanbuildinfo.pri)
 
 SOURCES += \
@@ -29,13 +28,11 @@ FORMS += \
 # Default rules for deployment
 macx {
     ICON = ../icons/deepn.icns
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.15
-    QMAKE_LFLAGS += -Bstatic
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 12.0
 }
 
 win32 {
     ICON = ../icons/deepn.ico
-    QMAKE_LFLAGS += -static
 }
 
 unix {

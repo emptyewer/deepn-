@@ -73,10 +73,10 @@ PythonQtMethodInfo::PythonQtMethodInfo(const QMetaMethod& meta, PythonQtClassInf
 PythonQtMethodInfo::PythonQtMethodInfo(const QByteArray& typeName, const QList<QByteArray>& args)
 {
   ParameterInfo type;
-  fillParameterInfo(type, typeName, NULL);
+  fillParameterInfo(type, typeName, nullptr);
   _parameters.append(type);
   Q_FOREACH (const QByteArray& name, args) {
-    fillParameterInfo(type, name, NULL);
+    fillParameterInfo(type, name, nullptr);
     _parameters.append(type);
   }
   setupAllowThreads();
@@ -85,7 +85,7 @@ PythonQtMethodInfo::PythonQtMethodInfo(const QByteArray& typeName, const QList<Q
 void PythonQtMethodInfo::setupAllowThreads()
 {
   bool allowThreads = true;
-  for (const ParameterInfo& info : _parameters) {
+  for (const ParameterInfo& info : qAsConst(_parameters)) {
     if (info.name == "PyObject" || info.name == "PythonQtObjectPtr" ||
       info.innerName == "PyObject" || info.innerName == "PythonQtObjectPtr") {
       allowThreads = false;
@@ -135,7 +135,7 @@ void PythonQtMethodInfo::fillParameterInfo(ParameterInfo& type, const QByteArray
 {
   QByteArray name = orgName;
 
-  type.enumWrapper = NULL;
+  type.enumWrapper = nullptr;
   type.innerNamePointerCount = 0;
   type.isQList = false;
   type.passOwnershipToCPP = false;
@@ -653,4 +653,9 @@ void PythonQtSlotInfo::invokeQtMethod(QObject* obj, PythonQtSlotInfo* slot, void
 void PythonQtSlotInfo::setGlobalShouldAllowThreads(bool flag)
 {
   _globalShouldAllowThreads = flag;
+}
+
+bool PythonQtSlotInfo::getGlobalShouldAllowThreads()
+{
+  return _globalShouldAllowThreads;
 }

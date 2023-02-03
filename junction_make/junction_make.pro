@@ -12,7 +12,12 @@ include(../config.pri)
 # In order to do so, uncomment the following line.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
-include(../conanbuildinfo.pri)
+DESTDIR = ../pythonqt/lib
+
+include (../conanbuildinfo.pri)
+include (../build/common.prf)
+include (../build/PythonQt.prf)
+include (../build/PythonQt_QtAll.prf)
 
 SOURCES += \
     main.cpp \
@@ -28,14 +33,12 @@ FORMS += \
 # Default rules for deployment
 macx {
     ICON = ../icons/junction_make.icns
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.15
-    QMAKE_LFLAGS += -Bstatic
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 12.0
 }
 
 
 win32 {
     ICON = ../icons/junction_make.ico
-    QMAKE_LFLAGS += -static
 }
 
 unix {

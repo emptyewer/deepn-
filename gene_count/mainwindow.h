@@ -1,5 +1,5 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#ifndef MAINWINDOW_H_GENECOUNT
+#define MAINWINDOW_H_GENECOUNT
 #include <QMainWindow>
 
 QT_BEGIN_NAMESPACE
@@ -15,11 +15,11 @@ public:
   MainWindow(QWidget *parent = nullptr);
   ~MainWindow();
 
-private slots:
+ private slots:
   void on_pushButton_clicked();
 
 private:
   Ui::MainWindow *ui;
   void initializePython();
 };
-#endif // MAINWINDOW_H
+#endif  // MAINWINDOW_H_GENECOUNT

@@ -6,11 +6,11 @@
 
 TARGET   = PyCPPWrapperExample
 TEMPLATE = app
+CONFIG += sdk_no_version_check
+DESTDIR = ../../lib
 
-DESTDIR           = ../../lib
-
-include ( ../../build/common.prf )  
-include ( ../../build/PythonQt.prf )  
+include ( ../../build/common.prf )
+include ( ../../build/PythonQt.prf )
 
 contains(QT_MAJOR_VERSION, 5) {
   QT += widgets

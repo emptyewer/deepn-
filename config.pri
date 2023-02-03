@@ -1,1 +1,1 @@
-CONAN_EXECUTABLE = /opt/homebrew/bin/conan # CHANGE THIS
+CONAN_EXECUTABLE = /usr/local/bin/conan # CHANGE THIS

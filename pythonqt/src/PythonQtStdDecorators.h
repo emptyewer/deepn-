@@ -69,9 +69,9 @@ public Q_SLOTS:
   bool connect(QObject* receiver, QObject* sender, const QByteArray& signal, const QByteArray& slot,  Qt::ConnectionType type = Qt::AutoConnection) { return connect(sender, signal, receiver, slot, type); }
   bool static_QObject_connect(QObject* sender, const QByteArray& signal, PyObject* callable) { return connect(sender, signal, callable); }
   bool static_QObject_connect(QObject* sender, const QByteArray& signal, QObject* receiver, const QByteArray& slot,  Qt::ConnectionType type = Qt::AutoConnection)  { return connect(sender, signal, receiver, slot, type); }
-  bool disconnect(QObject* sender, const QByteArray& signal, PyObject* callable = NULL);
+  bool disconnect(QObject* sender, const QByteArray& signal, PyObject* callable = nullptr);
   bool disconnect(QObject* sender, const QByteArray& signal, QObject* receiver, const QByteArray& slot);
-  bool static_QObject_disconnect(QObject* sender, const QByteArray& signal, PyObject* callable = NULL) { return disconnect(sender, signal, callable); }
+  bool static_QObject_disconnect(QObject* sender, const QByteArray& signal, PyObject* callable = nullptr) { return disconnect(sender, signal, callable); }
   bool static_QObject_disconnect(QObject* sender, const QByteArray& signal, QObject* receiver, const QByteArray& slot) { return disconnect(sender, signal, receiver, slot); }
 
   const QMetaObject* metaObject( QObject* obj );
@@ -124,6 +124,7 @@ class PythonQtSingleShotTimer : public QTimer
   Q_OBJECT
 public:
   PythonQtSingleShotTimer(int msec, const PythonQtObjectPtr& callable);
+  ~PythonQtSingleShotTimer() override;
 
 public Q_SLOTS :
   void slotTimeout();
@@ -172,6 +173,20 @@ public Q_SLOTS:
   QByteArray static_QMetaObject_normalizedType(const char *type) { return QMetaObject::normalizedType(type); }
 
 };
+
+//! Some methods to set properties of PythonQt from Python
+class PYTHONQT_EXPORT PythonQtConfigAPI : public QObject
+{
+  Q_OBJECT
+public:
+  PythonQtConfigAPI(QObject* parent):QObject(parent) {};
+
+public slots:
+  //! Set a callable that is used as the argument for the add_done_callback for the Task/Future
+  //! created when, e.g., an async function is connected to signal.
+  void setTaskDoneCallback(PyObject* object);
+};
+
 
 //! Some helper methods that allow testing of the ownership
 class PYTHONQT_EXPORT PythonQtDebugAPI : public QObject

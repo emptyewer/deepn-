@@ -1,11 +1,8 @@
 [requires]
-plog/1.1.5
 seqan/2.4.0
-cpython/3.9.7
 
 [generators]
 qmake
 cmake
 
 [options]
-cpython:shared=False
