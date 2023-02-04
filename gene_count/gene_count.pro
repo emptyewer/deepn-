@@ -49,3 +49,6 @@ unix {
 #export(copydata.commands)
 #QMAKE_EXTRA_TARGETS += first copydata
 
+DISTFILES += \
+    python/gene_count.py
+

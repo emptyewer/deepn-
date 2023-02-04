@@ -1,6 +1,8 @@
 # profile for non-mevis users to link to PythonQt_QtAll
 
-INCLUDEPATH += $$PWD/../extensions/PythonQt_QtAll
+INCLUDEPATH += $$PWD/../pythonqt/extensions/PythonQt_QtAll
+
+message($$PWD)
 
 # check if debug or release
 CONFIG(debug, debug|release) {

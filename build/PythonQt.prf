@@ -2,7 +2,7 @@
 
 include ( python.prf )
 
-INCLUDEPATH += $$PWD/../src
+INCLUDEPATH += $$PWD/../pythonqt/src
 
 # check if debug or release
 CONFIG(debug, debug|release) {
