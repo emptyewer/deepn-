@@ -29,7 +29,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>DEEPN</string>
+   <string>DEEPN++</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QWidget" name="layoutWidget">
@@ -47,7 +47,6 @@
        <property name="font">
         <font>
          <pointsize>16</pointsize>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -252,7 +251,6 @@
        <property name="font">
         <font>
          <pointsize>16</pointsize>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -299,7 +297,6 @@
          <property name="font">
           <font>
            <pointsize>14</pointsize>
-           <weight>50</weight>
            <bold>false</bold>
            <strikeout>false</strikeout>
           </font>
@@ -338,7 +335,6 @@
        <property name="font">
         <font>
          <pointsize>16</pointsize>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -357,7 +353,6 @@
          <property name="font">
           <font>
            <pointsize>14</pointsize>
-           <weight>50</weight>
            <bold>false</bold>
            <strikeout>false</strikeout>
           </font>
@@ -378,7 +373,6 @@
          <property name="font">
           <font>
            <pointsize>14</pointsize>
-           <weight>50</weight>
            <bold>false</bold>
            <strikeout>false</strikeout>
           </font>
@@ -404,7 +398,6 @@
          <property name="font">
           <font>
            <pointsize>14</pointsize>
-           <weight>75</weight>
            <bold>true</bold>
           </font>
          </property>

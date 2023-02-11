@@ -18,11 +18,12 @@ public:
   ~MainWindow();
 
 private slots:
-  static void on_gene_count_btn_clicked();
-
-  void on_junction_make_btn_clicked();
+ void on_gene_count_btn_clicked();
+ void on_junction_make_btn_clicked();
 
 private:
-  Ui::MainWindow *ui;
+ Ui::MainWindow *ui;
+ QProcess process;
+ QString appendPath(const QString &path1, const QString &path2);
 };
 #endif // MAINWINDOW_H

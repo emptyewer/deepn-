@@ -1,0 +1,50 @@
+{
+    "hg38exonDict.p": [{
+            "blast_db": "hg38NMgenes.db",
+            "chromosome_list": "hg38_Chr_List",
+            "genome": "hORFeome_TAB (hg38)",
+            "junction_presequence": "CCTCTGCGAGTGGTGGCAACTCTGTGGCCGGCCCAGCCGGCCATGTCAGC",
+            "orf_data": "hg38GeneList",
+            "orf_lookup_table": "hg38GeneList.prn",
+            "prey_library": "pGal4AD+humanORFeomeFragments"
+        },
+        {
+            "blast_db": "hg38NMgenes.db",
+            "chromosome_list": "hg38_Chr_List",
+            "genome": "H. sapiens (hg38) - pGADT7-AD M+PL",
+            "junction_presequence": "AATTCCACCCAAGCAGTGGTATCAACGCAGAGTGGCCATTACGGCCGGGG",
+            "orf_data": "hg38GeneList",
+            "orf_lookup_table": "hg38GeneList.prn",
+            "prey_library": "Clontech(mate/plate)_pGADT7_Human_cDNA"
+        }
+    ],
+    "sacCer3GeneDict.p": [{
+            "blast_db": "sacCer3.db",
+            "chromosome_list": "sacCer3_Chr_List",
+            "genome": "SacCer3_TAB",
+            "junction_presequence": "CCTCTGCGAGTGGTGGCAACTCTGTGGCCGGCCCAGCCGGCCATGTCAGC",
+            "orf_data": "sacCer3",
+            "orf_lookup_table": "sacCer3GeneList.prn",
+            "prey_library": "pGal4AD+GenomicFragmentDNA"
+        },
+        {
+            "blast_db": "sacCer3.db",
+            "chromosome_list": "sacCer3_Chr_List",
+            "genecount_dictionary": "sacCer3GeneDict.p",
+            "genome": "SacCer3 PJ pGADC1,2,3",
+            "junction_presequence": "ATGATGAAGATACCCCACCAAACCCAAAAAAAGAGATCGAATTCCCGGGG",
+            "orf_data": "sacCer3",
+            "orf_lookup_table": "sacCer3GeneList.prn",
+            "prey_library": "pGAD-C1_C2_C3_YeastGenomic"
+        }
+    ],
+    "mm10GeneDict.p": [{
+        "blast_db": "mm10mRNAnoSuffix.fa",
+        "chromosome_list": "mm10_Chr_List",
+        "genome": "M. musculus (mm10) - pGADT7-AD M+PL",
+        "junction_presequence": "AATTCCACCCAAGCAGTGGTATCAACGCAGAGTGGCCATTACGGCCGGGG",
+        "orf_data": "mm10mRNA",
+        "orf_lookup_table": "mm10GeneList.prn",
+        "prey_library": "Clontech(mate/plate)_pGADT7_Mouse_cDNA"
+    }]
+}

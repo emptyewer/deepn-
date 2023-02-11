@@ -3,7 +3,7 @@ QT       += core gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += sdk_no_version_check
-CONFIG += c++17 conan_basic_setup
+CONFIG += c++20
 
 TARGET = GeneCount++
 
@@ -13,21 +13,26 @@ TARGET = GeneCount++
 
 DESTDIR = ../pythonqt/lib
 
-include (../conanbuildinfo.pri)
 include (../build/common.prf)
 include (../build/PythonQt.prf)
 include (../build/PythonQt_QtAll.prf)
 
 SOURCES += \
+    gcworker.cpp \
     main.cpp \
     mainwindow.cpp \
+    signals.cpp
 
 
 HEADERS += \
+    datastructs.h \
+    gcworker.h \
     mainwindow.h \
+    signals.h
 
 FORMS += \
     mainwindow.ui
+
 
 # Default rules for deployment
 macx {
@@ -49,6 +54,17 @@ unix {
 #export(copydata.commands)
 #QMAKE_EXTRA_TARGETS += first copydata
 
-DISTFILES += \
-    python/gene_count.py
 
+
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../statgen/ -lStatGen
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../statgen/ -lStatGend
+else:unix: LIBS += -L$$PWD/../statgen/ -lStatGen
+
+INCLUDEPATH += $$PWD/../statgen/include
+DEPENDPATH += $$PWD/../statgen/include
+
+win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/../statgen/libStatGen.a
+else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/../statgen/libStatGend.a
+else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/../statgen/StatGen.lib
+else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/../statgen/StatGend.lib
+else:unix: PRE_TARGETDEPS += $$PWD/../statgen/libStatGen.a
