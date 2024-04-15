@@ -18,8 +18,6 @@ MainWindow::MainWindow(int argc, char* argv[], QWidget* parent)
   ui->setupUi(this);
   this->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint |
                        Qt::WindowStaysOnTopHint);
-  setupPython();
-  setupScriptPath();
   setupSlots();
   qRegisterMetaType<GCStat>("GCStat");
   for (int i = 1; i < argc; i++) {
@@ -70,34 +68,6 @@ void MainWindow::setupSlots() {
   connect(sig, &Signals::gc_update_progress_sig, this,
           &MainWindow::updateGeneCountProgress);
   connect(sig, &Signals::gc_finished_sig, this, &MainWindow::geneCountFinished);
-}
-
-void MainWindow::setupPython() {
-  PythonQt::init();
-  // get a smart pointer to the __main__ module of the Python interpreter
-  python = PythonQt::self()->getMainModule();
-}
-
-void MainWindow::setupScriptPath() {
-  QDir application_directory = QDir(QCoreApplication::applicationDirPath());
-  if (QSysInfo::productType() == "osx" || QSysInfo::productType() == "macos") {
-    application_directory.cdUp();
-    application_directory.cdUp();
-    script_path = appendPath(
-        appendPath(application_directory.path(), "Contents"), "Scripts");
-    PythonQt::self()->addSysPath(script_path);
-  }
-}
-
-bool MainWindow::readPythonScript(QString file_name) {
-  QString s = appendPath(script_path, file_name);
-  QFile file(s);
-  if (!file.open(QFile::ReadOnly | QFile::Text)) {
-    return false;
-  }
-  QTextStream in(&file);
-  python.evalScript(in.readAll());
-  return true;
 }
 
 void MainWindow::on_debug_btn_clicked() {

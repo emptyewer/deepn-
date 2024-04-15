@@ -4,3 +4,15 @@
 [submodule "statgen"]
 	path = statgen
 	url = https://github.com/statgen/libStatGen
+[submodule "ncbi/zlib"]
+	path = ncbi/zlib
+	url = https://github.com/madler/zlib
+[submodule "zlib"]
+	path = zlib
+	url = https://github.com/madler/zlib
+[submodule "blat"]
+	path = blat
+	url = https://github.com/djhshih/blat
+[submodule "xlsx"]
+	path = xlsx
+	url = https://github.com/QtExcel/QSimpleXlsxWriter

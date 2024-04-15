@@ -28,7 +28,7 @@ FORMS += \
 # Default rules for deployment
 macx {
     ICON = ../icons/multi_query.icns
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 13.0
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 14.0
 }
 
 win32 {

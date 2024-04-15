@@ -1,11 +1,8 @@
 
-PYTHON_PATH=/usr/local/opt/python@3.11/Frameworks/Python.framework/Versions/3.11
-SITEPACKAGE=/Users/vkrishnamani/.virtualenvs/deepn/lib/python3.11/site-packages
-
 /bin/mkdir -p $(pwd)/deepn/DEEPN++.app/Contents/Data
 rsync -avhu --ignore-errors ../data/deepn.json $(pwd)/deepn/DEEPN++.app/Contents/Data
 
-### Uncomment for deployment ###
+## Uncomment for deployment ###
 
 # for db in ../data/blast_db/*.unique.fasta; do
 #     ../ncbi/build/bin/makeblastdb -in ${db} -dbtype nucl
@@ -27,16 +24,9 @@ for file in "${files[@]}"; do  # loop through the array
         /bin/mkdir -p $(pwd)/pythonqt/lib/${file}.app/Contents/Scripts/Data
         rsync -avhu --ignore-errors ../scripts/${file}/* $(pwd)/pythonqt/lib/${file}.app/Contents/Scripts
         rsync -avhu --ignore-errors ../data/deepn.sqlite $(pwd)/pythonqt/lib/${file}.app/Contents/Scripts/Data
-        # python
-        rsync -avhu --ignore-errors $PYTHON_PATH $(pwd)/pythonqt/lib/${file}.app/Contents/MacOS
-        rsync -avhu --ignore-errors $(pwd)/pythonqt/lib/*.dylib $(pwd)/pythonqt/lib/${file}.app/Contents/MacOS
-        rsync -avhu --ignore-errors $SITEPACKAGE/ $(pwd)/pythonqt/lib/${file}.app/Contents/MacOS/3.11/lib/python3.11
         # HTSLIB
         rsync -avhu --ignore-errors ../samtools/htslib/*.dylib $(pwd)/pythonqt/lib/${file}.app/Contents/MacOS
         # change lib loader paths
-        install_name_tool -change libPythonQt-Qt5-Python3.11.3.dylib @executable_path/libPythonQt-Qt5-Python3.11.3.dylib $(pwd)/pythonqt/lib/${file}.app/Contents/MacOS/${file}
-        install_name_tool -change libPythonQt_QtAll-Qt5-Python3.11.3.dylib @executable_path/libPythonQt_QtAll-Qt5-Python3.11.3.dylib $(pwd)/pythonqt/lib/${file}.app/Contents/MacOS/${file}
-        install_name_tool -change $PYTHON_PATH/Python @executable_path/3.11/Python $(pwd)/pythonqt/lib/${file}.app/Contents/MacOS/${file}
         install_name_tool -change /usr/local/lib/libhts.3.dylib @executable_path/libhts.3.dylib $(pwd)/pythonqt/lib/${file}.app/Contents/MacOS/${file}
     fi
 done

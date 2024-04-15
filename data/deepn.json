@@ -1,0 +1,31 @@
+[{
+        "map_db": "hg38GeneList2023.unique.fasta",
+        "junction_sequence": "CCTCTGCGAGTGGTGGCAACTCTGTGGCCGGCCCAGCCGGCCATGTCAGC",
+        "display_name": "hORFeome_TAB (hg38)",
+        "prey_library": "pGal4AD+humanORFeomeFragments"
+    },
+    {
+        "map_db": "hg38GeneList2023.unique.fasta",
+        "junction_sequence": "AATTCCACCCAAGCAGTGGTATCAACGCAGAGTGGCCATTACGGCCGGGG",
+        "display_name": "H. sapiens (hg38) - pGADT7-AD M+PL",
+        "prey_library": "Clontech(mate/plate)_pGADT7_Human_cDNA"
+    },
+    {
+        "map_db": "SacCer3_yeast_GeneList2023.unique.fasta",
+        "junction_sequence": "CCTCTGCGAGTGGTGGCAACTCTGTGGCCGGCCCAGCCGGCCATGTCAGC",
+        "display_name": "SacCer3_TAB",
+        "prey_library": "pGal4AD+GenomicFragmentDNA"
+    },
+    {
+        "map_db": "SacCer3_yeast_GeneList2023.unique.fasta",
+        "junction_sequence": "ATGATGAAGATACCCCACCAAACCCAAAAAAAGAGATCGAATTCCCGGGG",
+        "display_name": "SacCer3 PJ pGADC1,2,3",
+        "prey_library": "pGAD-C1_C2_C3_YeastGenomic"
+    },
+    {
+        "map_db": "MM10GeneList2023.unique.fasta",
+        "junction_sequence": "AATTCCACCCAAGCAGTGGTATCAACGCAGAGTGGCCATTACGGCCGGGG",
+        "display_name": "M. musculus (mm10) - pGADT7-AD M+PL",
+        "prey_library": "Clontech(mate/plate)_pGADT7_Mouse_cDNA"
+    }
+]

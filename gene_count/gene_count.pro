@@ -11,12 +11,12 @@ TARGET = GeneCount++
 # In order to do so, uncomment the following line.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
-DESTDIR = ../pythonqt/lib
+# DESTDIR = ../pythonqt/lib
 
 
-include (../build/common.prf)
-include (../build/PythonQt.prf)
-include (../build/PythonQt_QtAll.prf)
+# include (../build/common.prf)
+# include (../build/PythonQt.prf)
+# include (../build/PythonQt_QtAll.prf)
 include (../xlsx/QSimpleXlsxWriter/QSimpleXlsxWriter.pri)
 
 SOURCES += \
@@ -41,7 +41,7 @@ FORMS += \
 # Default rules for deployment
 macx {
     ICON = ../icons/gene_count.icns
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 13.0
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 14.0
 }
 
 win32 {

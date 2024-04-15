@@ -25,3 +25,11 @@ graph_info.json
 mac-release
 release_*
 debug_*
+ncbi/*
+data/old/
+macOS_release/
+macOS_Release/
+macOS_debug/
+macOS_Debug/
+_*
+data/blast_db/
