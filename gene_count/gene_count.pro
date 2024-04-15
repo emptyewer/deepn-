@@ -1,4 +1,4 @@
-QT       += core gui
+QT       += core gui sql
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -13,14 +13,17 @@ TARGET = GeneCount++
 
 DESTDIR = ../pythonqt/lib
 
+
 include (../build/common.prf)
 include (../build/PythonQt.prf)
 include (../build/PythonQt_QtAll.prf)
+include (../xlsx/QSimpleXlsxWriter/QSimpleXlsxWriter.pri)
 
 SOURCES += \
     gcworker.cpp \
     main.cpp \
     mainwindow.cpp \
+    maphits.cpp \
     signals.cpp
 
 
@@ -28,6 +31,7 @@ HEADERS += \
     datastructs.h \
     gcworker.h \
     mainwindow.h \
+    maphits.h \
     signals.h
 
 FORMS += \
@@ -37,7 +41,7 @@ FORMS += \
 # Default rules for deployment
 macx {
     ICON = ../icons/gene_count.icns
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 12.0
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 13.0
 }
 
 win32 {
@@ -54,17 +58,7 @@ unix {
 #export(copydata.commands)
 #QMAKE_EXTRA_TARGETS += first copydata
 
-
-
-win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../statgen/ -lStatGen
-else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../statgen/ -lStatGend
-else:unix: LIBS += -L$$PWD/../statgen/ -lStatGen
-
-INCLUDEPATH += $$PWD/../statgen/include
-DEPENDPATH += $$PWD/../statgen/include
-
-win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/../statgen/libStatGen.a
-else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/../statgen/libStatGend.a
-else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/../statgen/StatGen.lib
-else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/../statgen/StatGend.lib
-else:unix: PRE_TARGETDEPS += $$PWD/../statgen/libStatGen.a
+#macx: LIBS += -L$$PWD/../samtools/htslib/ -lhts
+#INCLUDEPATH += $$PWD/../samtools/htslib
+#DEPENDPATH += $$PWD/../samtools/htslib
+#macx: PRE_TARGETDEPS += $$PWD/../samtools/htslib/libhts.a

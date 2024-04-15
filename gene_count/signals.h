@@ -3,7 +3,6 @@
 
 #include <QObject>
 
-#include "datastructs.h"
 
 class Signals : public QObject {
   Q_OBJECT
@@ -11,7 +10,7 @@ class Signals : public QObject {
   static Signals *getCommonInstance();
 
  signals:
-  void gc_update_progress_sig(GCStat stat);
+  void gc_update_progress_sig();
   void gc_finished_sig();
 
  private:

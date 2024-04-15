@@ -1,9 +1,11 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <QDir>
+#include <QFileSystemWatcher>
+#include <QListWidgetItem>
 #include <QMainWindow>
 #include <QProcess>
-#include <QDir>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -17,13 +19,30 @@ public:
   MainWindow(QWidget *parent = nullptr);
   ~MainWindow();
 
-private slots:
- void on_gene_count_btn_clicked();
- void on_junction_make_btn_clicked();
+ signals:
 
-private:
- Ui::MainWindow *ui;
- QProcess process;
- QString appendPath(const QString &path1, const QString &path2);
+ private slots:
+  void gatherFilesToggleButtons();
+  void on_gene_count_btn_clicked();
+  void on_select_folder_btn_clicked();
+  void on_db_list_wgt_currentItemChanged(QListWidgetItem *current,
+                                         QListWidgetItem *previous);
+  void on_junction_dice_btn_clicked();
+  void on_actionDB_Path_triggered();
+
+ private:
+  Ui::MainWindow *ui;
+  QList<QMap<QString, QVariant>> data;
+  QFileSystemWatcher watcher;
+  QProcess process;
+  QDir parentDir = QDir();
+  QMap<QString, QStringList> files = {};
+  QString appendPath(const QString &path1, const QString &path2);
+  void loadDatabase();
+  void initializeWorkDir();
+  void monitorSubDirs(QDir parentDir);
+  void createSubDirs();
+  void gatherFiles(QDir dir, QString key);
+  void readJsonFile(QString filename);
 };
 #endif // MAINWINDOW_H

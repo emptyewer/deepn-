@@ -3,25 +3,35 @@
 
 #include <QElapsedTimer>
 #include <QObject>
+#include <QThread>
+#include <QtSql>
 
+#include "datastructs.h"
+#include "maphits.h"
 #include "signals.h"
 
 class GCWorker : public QObject {
   Q_OBJECT
+
  public:
-  explicit GCWorker(QString file);
+  explicit GCWorker(GCStat *stat);
 
  public slots:
-  void doWork();
-  void finished();
-  void stop();
-
- signals:
+  void run();
 
  private:
-  QElapsedTimer timer;
-  QString sam_file;
+  QElapsedTimer elapsedTimer;
+  QSqlDatabase db;
+  QSqlDatabase mem_db;
+  QSqlQuery query;
   Signals *sig = Signals::getCommonInstance();
+  GCStat *stat;
+  QString mappedOuputDBName;
+  void setupDB();
+  void writeToDatabase(QList<ReadHits> *collectedReads);
+  void readMapOutput();
+  void writeGeneCount();
+  void createInMemoryDB();
 };
 
 #endif // GCWORKER_H

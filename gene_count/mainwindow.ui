@@ -6,12 +6,18 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>757</width>
-    <height>298</height>
+    <width>580</width>
+    <height>367</height>
    </rect>
   </property>
+  <property name="font">
+   <font>
+    <family>Courier New</family>
+    <bold>true</bold>
+   </font>
+  </property>
   <property name="windowTitle">
-   <string>Gene Count ++</string>
+   <string>Gene Count++</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -30,6 +36,13 @@
     </item>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QPushButton" name="exit_btn">
+        <property name="text">
+         <string>Exit</string>
+        </property>
+       </widget>
+      </item>
       <item>
        <spacer name="horizontalSpacer">
         <property name="orientation">
@@ -59,12 +72,29 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>757</width>
+     <width>580</width>
      <height>24</height>
     </rect>
    </property>
   </widget>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>exit_btn</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>43</x>
+     <y>429</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>289</x>
+     <y>228</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

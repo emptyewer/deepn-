@@ -2,15 +2,33 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QFileDialog>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QStandardPaths>
 #include <QSysInfo>
+#include <QUuid>
 
+#include "darkpaint.h"
 #include "ui_mainwindow.h"
+
+QMap<QString, QStringList> SUBDIR_FILES = {
+    {"fastq", {"*.fastq.gz"}},
+    {"junction_diced_fasta", {"*.jdice.fasta"}},
+    {"gene_count_summary", {"*.csv"}},
+    {"query_files", {"*.bq"}},
+    {"mapped_files", {"*.megablast.txt", "*.blat.txt", "*.blastn.txt"}},
+    {"analyzed_files", {"*.rd"}}};
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent), ui(new Ui::MainWindow) {
   ui->setupUi(this);
   connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit,
           &process, &QProcess::kill);
+  QObject::connect(&watcher, &QFileSystemWatcher::directoryChanged, this,
+                   &MainWindow::gatherFilesToggleButtons);
+  loadDatabase();
 }
 
 MainWindow::~MainWindow() { delete ui; }
@@ -19,7 +37,137 @@ QString MainWindow::appendPath(const QString& path1, const QString& path2) {
   return QDir::cleanPath(path1 + QDir::separator() + path2);
 }
 
+void MainWindow::gatherFiles(QDir dir, QString key) {
+  files[key].clear();
+  dir.setFilter(QDir::Files | QDir::NoDotAndDotDot);
+  QFileInfoList fileInfoList = dir.entryInfoList(SUBDIR_FILES[key]);
+  foreach (QFileInfo fileInfo, fileInfoList) {
+    files[key] << fileInfo.filePath();
+  }
+}
+
+void MainWindow::gatherFilesToggleButtons() {
+  foreach (QString subDirName, SUBDIR_FILES.keys()) {
+    QDir sub(parentDir.absoluteFilePath(subDirName));
+    gatherFiles(sub, subDirName);
+  }
+  if (files["fastq"].length() > 0) {
+    ui->junction_dice_btn->setEnabled(true);
+  } else {
+    ui->junction_dice_btn->setEnabled(false);
+  }
+
+  if (files["mapped_files"].length() > 0) {
+    ui->gene_count_btn->setEnabled(true);
+  } else {
+    ui->gene_count_btn->setEnabled(false);
+  }
+
+  if (files["query_files"].length() > 0) {
+    ui->query_blast_btn->setEnabled(true);
+  } else {
+    ui->query_blast_btn->setEnabled(false);
+  }
+
+  if (files["analyzed_files"].length() > 0) {
+    ui->read_depth_btn->setEnabled(true);
+  } else {
+    ui->read_depth_btn->setEnabled(false);
+  }
+}
+
+void MainWindow::monitorSubDirs(QDir parentDir) {
+  foreach (QString subDirName, SUBDIR_FILES.keys()) {
+    QDir sub(parentDir.absoluteFilePath(subDirName));
+    watcher.addPath(sub.absolutePath());
+  }
+}
+
+void MainWindow::createSubDirs() {
+  foreach (QString subdir, SUBDIR_FILES.keys()) {
+    QDir sub(parentDir.absoluteFilePath(subdir));
+    if (!sub.exists()) {
+      ui->status_text->appendPlainText(
+          QString("Creating subfolder : %1").arg(sub.path()));
+      sub.mkpath(".");
+    }
+  }
+}
+
+void MainWindow::initializeWorkDir() {
+  if (parentDir.absolutePath() != "") {
+    ui->status_text->appendPlainText(
+        QString("Setting Work Directory : %1").arg(parentDir.absolutePath()));
+    if (!parentDir.exists()) {
+      parentDir.mkdir(".");
+    }
+    createSubDirs();
+    monitorSubDirs(parentDir);
+    gatherFilesToggleButtons();
+  }
+}
+
+void MainWindow::readJsonFile(QString filename) {
+  // Open the file
+  QFile file(filename);
+  if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    qWarning() << "Could not open file for reading:" << filename;
+    return;
+  }
+
+  // Read the JSON data
+  QByteArray jsonData = file.readAll();
+  QJsonDocument doc = QJsonDocument::fromJson(jsonData);
+
+  // Check if the JSON data is valid
+  if (doc.isNull()) {
+    qWarning() << "Invalid JSON data in file:" << filename;
+    return;
+  }
+
+  // Convert the JSON data to a list of dictionaries
+  QJsonArray jsonArray = doc.array();
+  for (auto it = jsonArray.begin(); it != jsonArray.end(); ++it) {
+    QJsonObject jsonObj = it->toObject();
+    QMap<QString, QVariant> map;
+    for (auto iter = jsonObj.begin(); iter != jsonObj.end(); ++iter) {
+      map.insert(iter.key(), iter.value().toVariant());
+    }
+    data.append(map);
+  }
+}
+
+void MainWindow::loadDatabase() {
+  QString data_path;
+  bool sel = false;
+  QDir application_directory = QDir(QCoreApplication::applicationDirPath());
+  if (QSysInfo::productType() == "osx" || QSysInfo::productType() == "macos") {
+    application_directory.cdUp();
+    application_directory.cdUp();
+    data_path = QDir::cleanPath(application_directory.path() +
+                                QDir::separator() + "Contents/Data/deepn.json");
+  }
+  readJsonFile(data_path);
+  for (const auto& map : qAsConst(data)) {
+    QListWidgetItem* item = new QListWidgetItem();
+    item->setData(Qt::UserRole, map);
+    item->setText(map["display_name"].toString());
+    ui->db_list_wgt->addItem(item);
+    // Iterate over the key-value pairs in the map
+    if (sel) {
+      ui->db_list_wgt->setCurrentItem(item);
+      sel = false;
+    }
+  }
+  QApplication::processEvents();
+}
+
 void MainWindow::on_gene_count_btn_clicked() {
+  //  Overlay* overlay_ = new Overlay(this);
+  //  overlay_->resize(size());
+  //  overlay_->setVisible(true);
+  //  QApplication::processEvents();
+
   QDir application_directory = QDir(QCoreApplication::applicationDirPath());
   QString gene_count_path;
   if (QSysInfo::productType() == "osx" || QSysInfo::productType() == "macos") {
@@ -38,30 +186,76 @@ void MainWindow::on_gene_count_btn_clicked() {
   }
   ui->status_text->appendPlainText(gene_count_path);
   QStringList arguments;
-  arguments << "/c C:/Users/firstname secondname/desktop/mybatchfile.bat 2";
+  arguments << files["mapped_files"];
   process.start(QDir::toNativeSeparators(gene_count_path), arguments);
   process.waitForFinished(-1);
 }
 
-void MainWindow::on_junction_make_btn_clicked() {
+void MainWindow::on_db_list_wgt_currentItemChanged(QListWidgetItem* current,
+                                                   QListWidgetItem* previous) {
+  QMap<QString, QVariant> data = current->data(Qt::UserRole).toMap();
+  ui->junction_sequence_txt->setText(data["junction_sequence"].toString());
+  ui->database_path->setText(data["map_db"].toString());
+}
+
+void MainWindow::on_select_folder_btn_clicked() {
+  QString workDir = QFileDialog::getExistingDirectory(
+      this, tr("Select DEEPN++ Work Directory"), QDir::homePath(),
+      QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+  ui->folder_path_lbl->setText(workDir);
+  parentDir = QDir(workDir);
+  initializeWorkDir();
+}
+
+void MainWindow::on_junction_dice_btn_clicked() {
   QDir application_directory = QDir(QCoreApplication::applicationDirPath());
-  QString junction_make_path;
+  QString junction_dice_path;
   if (QSysInfo::productType() == "osx" || QSysInfo::productType() == "macos") {
     application_directory.cdUp();
     application_directory.cdUp();
-    junction_make_path = appendPath(
-        application_directory.path(),
-        "/Contents/Resources/JunctionMake++.app/Contents/MacOS/JunctionMake++");
+    junction_dice_path = appendPath(application_directory.path(),
+                                    "Contents/Resources/JunctionDice++.app/"
+                                    "Contents/MacOS/JunctionDice++");
   } else if (QSysInfo::productType() == "windows" ||
              QSysInfo::productType() == "winrt") {
-    junction_make_path = appendPath(application_directory.path(),
-                                    "junction_make/JunctionMake++.exe");
+    junction_dice_path = appendPath(application_directory.path(),
+                                    "junction_dice/JunctionDice++.exe");
   } else {
-    junction_make_path = appendPath(application_directory.path(),
-                                    "junction_make/JunctionMake++");
+    junction_dice_path = appendPath(application_directory.path(),
+                                    "junction_dice/JunctionDice++");
   }
+  ui->status_text->appendPlainText(junction_dice_path);
   QStringList arguments;
-  arguments << "/c C:/Users/firstname secondname/desktop/mybatchfile.bat 2";
-  process.startDetached(QDir::toNativeSeparators(junction_make_path),
-                        arguments);
+  arguments << files["fastq"] << ui->junction_sequence_txt->text()
+            << ui->database_path->text();
+  qDebug() << arguments;
+  process.start(QDir::toNativeSeparators(junction_dice_path), arguments);
+  process.waitForFinished(-1);
 }
+
+// void MainWindow::on_junction_make_btn_clicked() {
+//   QDir application_directory =
+//   QDir(QCoreApplication::applicationDirPath()); QString junction_make_path;
+//   if (QSysInfo::productType() == "osx" || QSysInfo::productType() ==
+//   "macos")
+//   {
+//     application_directory.cdUp();
+//     application_directory.cdUp();
+//     junction_make_path = appendPath(
+//         application_directory.path(),
+//         "/Contents/Resources/JunctionMake++.app/Contents/MacOS/JunctionMake++");
+//   } else if (QSysInfo::productType() == "windows" ||
+//              QSysInfo::productType() == "winrt") {
+//     junction_make_path = appendPath(application_directory.path(),
+//                                     "junction_make/JunctionMake++.exe");
+//   } else {
+//     junction_make_path = appendPath(application_directory.path(),
+//                                     "junction_make/JunctionMake++");
+//   }
+//   QStringList arguments;
+//   arguments << "/c C:/Users/firstname secondname/desktop/mybatchfile.bat
+//   2"; process.start(QDir::toNativeSeparators(junction_make_path),
+//   arguments); process.waitForFinished(-1);
+// }
+
+void MainWindow::on_actionDB_Path_triggered() {}

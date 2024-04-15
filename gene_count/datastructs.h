@@ -1,12 +1,14 @@
 #ifndef DATASTRUCTS_H
 #define DATASTRUCTS_H
 
+#include <QMap>
 #include <QString>
+#include <algorithm>
 
 struct GCStat {
-  QString filename;
-  int readCount;
-  QString currentRefSeq;
+  QString input;
+  int readCount = 0;
+  QString readName = "";
   int elapsedTime;
   bool running = true;
 };
