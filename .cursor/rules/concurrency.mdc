@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- Use std::thread, std::mutex, std::lock_guard for thread safety.
+- Prefer task-based parallelism over thread-based parallelism.
+- Use std::atomic for atomic operations.
+- Avoid data races by proper synchronization.
+- Use thread-safe data structures when necessary.

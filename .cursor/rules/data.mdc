@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- Don't abuse primitive types and encapsulate data in composite types.
+- Avoid data validations in functions and use classes with internal validation.
+- Prefer immutability for data.
+- Use const for data that doesn't change.
+- Use constexpr for compile-time constants.
+- Use std::optional for possibly null values.

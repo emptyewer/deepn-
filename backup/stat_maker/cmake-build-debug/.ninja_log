@@ -1,0 +1,14 @@
+# ninja log v6
+1	264	1718397278097410653	deepn_cpp_qt_autogen/mocs_compilation.cpp	87cebef9db93a9bc
+275	915	1718397278116753306	CMakeFiles/deepn_cpp_qt.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QCocoaIntegrationPlugin_Import.cpp.o	9c89c7221e977ff2
+311	931	1718397278152271776	CMakeFiles/deepn_cpp_qt.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5PrintSupport/Qt5PrintSupport_QCocoaPrinterSupportPlugin_Import.cpp.o	5bbeb21c64d15bef
+678	1136	1718397278519362202	CMakeFiles/deepn_cpp_qt.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QGifPlugin_Import.cpp.o	f1db2b7c6b1466a2
+1	264	1718397278097410653	/Users/venky/Projects/deepn-plus/stat_maker/cmake-build-debug/deepn_cpp_qt_autogen/timestamp	87cebef9db93a9bc
+1	264	1718397278097410653	/Users/venky/Projects/deepn-plus/stat_maker/cmake-build-debug/deepn_cpp_qt_autogen/mocs_compilation.cpp	87cebef9db93a9bc
+264	274	1718397278114919387	/Users/venky/Projects/deepn-plus/stat_maker/cmake-build-debug/deepn_cpp_qt_autogen/EWIEGA46WW/qrc_resources.cpp	e1456dc5d62833fc
+264	274	1718397278114919387	deepn_cpp_qt_autogen/EWIEGA46WW/qrc_resources.cpp	e1456dc5d62833fc
+1	264	1718397278097410653	deepn_cpp_qt_autogen/timestamp	87cebef9db93a9bc
+275	311	1718397278116277722	CMakeFiles/deepn_cpp_qt.dir/deepn_cpp_qt_autogen/EWIEGA46WW/qrc_resources.cpp.o	715de2dd6c58ae61
+275	675	1718397278116051930	CMakeFiles/deepn_cpp_qt.dir/analyzeDeepn.cpp.o	cb7e18cb32ce7246
+274	908	1718397278115730055	CMakeFiles/deepn_cpp_qt.dir/deepn_cpp_qt_autogen/mocs_compilation.cpp.o	b3106f11bb17b604
+274	939	1718397278115912138	CMakeFiles/deepn_cpp_qt.dir/main.cpp.o	535598abe64ffce1

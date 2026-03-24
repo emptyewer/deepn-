@@ -1,0 +1,26 @@
+=== Preparing data ===
+Archive:  data/hg38GeneList2023.unique.fasta.sqlite.zip
+  inflating: data/hg38GeneList2023.unique.fasta.sqlite  
+  inflating: data/__MACOSX/._hg38GeneList2023.unique.fasta.sqlite  
+Archive:  data/MM10GeneList2023.unique.fasta.sqlite.zip
+  inflating: data/MM10GeneList2023.unique.fasta.sqlite  
+Archive:  data/SacCer3_yeast_GeneList2023.unique.fasta.sqlite.zip
+  inflating: data/SacCer3_yeast_GeneList2023.unique.fasta.sqlite  
+Archive:  data/blast_db/hg38GeneList2023.unique.fasta.zip
+  inflating: data/blast_db/hg38GeneList2023.unique.fasta  
+  inflating: data/blast_db/__MACOSX/._hg38GeneList2023.unique.fasta  
+Archive:  data/blast_db/MM10GeneList2023.unique.fasta.zip
+  inflating: data/blast_db/MM10GeneList2023.unique.fasta  
+  inflating: data/blast_db/__MACOSX/._MM10GeneList2023.unique.fasta  
+Archive:  data/blast_db/SacCer3_yeast_GeneList2023.unique.fasta.zip
+  inflating: data/blast_db/SacCer3_yeast_GeneList2023.unique.fasta  
+  inflating: data/blast_db/__MACOSX/._SacCer3_yeast_GeneList2023.unique.fasta  
+Building BLAST DB for data/blast_db/hg38GeneList2023.unique.fasta
+/bin/sh: /Users/venky/Projects/deepn-plus/ncbi/build/bin/makeblastdb: No such file or directory
+/bin/sh: /Users/venky/Projects/deepn-plus/ncbi/build/bin/makembindex: No such file or directory
+Building BLAST DB for data/blast_db/MM10GeneList2023.unique.fasta
+/bin/sh: /Users/venky/Projects/deepn-plus/ncbi/build/bin/makeblastdb: No such file or directory
+/bin/sh: /Users/venky/Projects/deepn-plus/ncbi/build/bin/makembindex: No such file or directory
+Building BLAST DB for data/blast_db/SacCer3_yeast_GeneList2023.unique.fasta
+/bin/sh: /Users/venky/Projects/deepn-plus/ncbi/build/bin/makeblastdb: No such file or directory
+/bin/sh: /Users/venky/Projects/deepn-plus/ncbi/build/bin/makembindex: No such file or directory

@@ -1,0 +1,27 @@
+toolchain=/mxe/usr/x86_64-w64-mingw32.static
+prefix=x86_64-w64-mingw32.static
+cc_compiler=/mxe/usr/bin/x86_64-w64-mingw32.static-gcc
+cxx_compiler=/mxe/usr/bin/x86_64-w64-mingw32.static-g++
+
+[env]
+CONAN_CMAKE_FIND_ROOT_PATH=$toolchain  # Optional, for CMake to find things in that folder
+CONAN_CMAKE_SYSROOT=$toolchain  # Optional, if we want to define sysroot
+CHOST=x86_64-w64-mingw32
+AR=$prefix-ar
+AS=$prefix-as
+RANLIB=$prefix-ranlib
+CC=$cc_compiler
+CXX=$cxx_compiler
+STRIP=$prefix-strip
+RC=$prefix-windres
+
+[settings]
+# We are cross-building to Windows
+os=Windows
+arch=x86_64
+compiler=gcc
+
+# Adjust to the gcc version of your MinGW package
+compiler.version=9.3
+compiler.libcxx=libstdc++11
+build_type=Release

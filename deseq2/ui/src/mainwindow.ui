@@ -1,0 +1,827 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1366</width>
+    <height>800</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>DESeq2 Differential Expression Analysis</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>:/icons/deseq2_icon.png</normaloff>:/icons/deseq2_icon.png</iconset>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <property name="spacing">
+     <number>6</number>
+    </property>
+    <property name="leftMargin">
+     <number>6</number>
+    </property>
+    <property name="topMargin">
+     <number>6</number>
+    </property>
+    <property name="rightMargin">
+     <number>6</number>
+    </property>
+    <property name="bottomMargin">
+     <number>6</number>
+    </property>
+    <item>
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="inputTab">
+       <attribute name="title">
+        <string>Input</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <widget class="QGroupBox" name="dataInputGroup">
+          <property name="title">
+           <string>Gene Count File Input</string>
+          </property>
+          <layout class="QVBoxLayout" name="dataInputLayout">
+           <item>
+            <layout class="QHBoxLayout" name="fileInputLayout">
+             <item>
+              <widget class="QLabel" name="ppmFileLabel">
+               <property name="text">
+                <string>Gene Count Files:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="addPpmFilesButton">
+               <property name="text">
+                <string>Add Gene Count Files</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="clearFilesButton">
+               <property name="text">
+                <string>Clear All</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer_4">
+               <property name="orientation">
+                <enum>Qt::Orientation::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="generateDataLayout">
+               <item>
+                <widget class="QPushButton" name="generateDataButton">
+                 <property name="text">
+                  <string>Generate</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="exportGeneratedDataButton">
+                 <property name="text">
+                  <string>Export</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QTableWidget" name="geneCountFilesTable">
+             <property name="editTriggers">
+              <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+             </property>
+             <property name="alternatingRowColors">
+              <bool>true</bool>
+             </property>
+             <property name="selectionBehavior">
+              <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+             </property>
+             <property name="sortingEnabled">
+              <bool>true</bool>
+             </property>
+             <attribute name="horizontalHeaderDefaultSectionSize">
+              <number>200</number>
+             </attribute>
+             <attribute name="horizontalHeaderStretchLastSection">
+              <bool>true</bool>
+             </attribute>
+             <column>
+              <property name="text">
+               <string>File Path</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Sample Name</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Group</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Total Reads</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Status</string>
+              </property>
+             </column>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupAssignmentGroup">
+          <property name="title">
+           <string>Group Assignment</string>
+          </property>
+          <layout class="QHBoxLayout" name="groupAssignmentLayout">
+           <item>
+            <widget class="QLabel" name="groupNameLabel">
+             <property name="text">
+              <string>Group Name:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="groupNameEdit">
+             <property name="placeholderText">
+              <string>Enter group name (e.g., Selection, Non-Selection)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="assignGroupButton">
+             <property name="text">
+              <string>Assign to Selected</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="autoAssignButton">
+             <property name="text">
+              <string>Auto-Assign by Filename</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="dataPreviewGroup">
+          <property name="title">
+           <string>Generated Data Preview</string>
+          </property>
+          <layout class="QHBoxLayout" name="dataPreviewLayout">
+           <item>
+            <widget class="QGroupBox" name="countsPreviewGroup">
+             <property name="title">
+              <string>Count Matrix Preview (First 20 genes, max 10 samples)</string>
+             </property>
+             <layout class="QVBoxLayout" name="countsPreviewLayout">
+              <item>
+               <widget class="QTableWidget" name="countsPreviewTable">
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>200</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="metadataPreviewGroup">
+             <property name="title">
+              <string>Metadata Preview (All samples)</string>
+             </property>
+             <layout class="QVBoxLayout" name="metadataPreviewLayout">
+              <item>
+               <widget class="QTableWidget" name="metadataPreviewTable">
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>200</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="analysisButtonsLayout">
+          <item>
+           <widget class="QPushButton" name="runAnalysisButton">
+            <property name="text">
+             <string>Run Analysis</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="stopAnalysisButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Stop</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="resetAnalysisButton">
+            <property name="text">
+             <string>Reset</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="resultsTab">
+       <attribute name="title">
+        <string>Results</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="resultsLayout">
+        <item>
+         <widget class="QGroupBox" name="summaryGroup">
+          <property name="title">
+           <string>Results Summary</string>
+          </property>
+          <layout class="QGridLayout" name="summaryGrid">
+           <item row="0" column="0">
+            <widget class="QLabel" name="totalGenesLabel">
+             <property name="text">
+              <string>Total Genes: 0</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLabel" name="significantGenesLabel">
+             <property name="text">
+              <string>Significant: 0</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="upregulatedLabel">
+             <property name="text">
+              <string>Upregulated: 0</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLabel" name="downregulatedLabel">
+             <property name="text">
+              <string>Downregulated: 0</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="resultsTableGroup">
+          <property name="title">
+           <string>Results Table</string>
+          </property>
+          <layout class="QVBoxLayout" name="resultsTableLayout">
+           <item>
+            <widget class="QTableWidget" name="resultsTable">
+             <property name="alternatingRowColors">
+              <bool>true</bool>
+             </property>
+             <property name="selectionBehavior">
+              <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+             </property>
+             <property name="sortingEnabled">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="filteringGroup">
+          <property name="title">
+           <string>Filtering Options</string>
+          </property>
+          <layout class="QHBoxLayout" name="filteringLayout">
+           <item>
+            <widget class="QLabel" name="pValueThresholdLabel">
+             <property name="text">
+              <string>P-value threshold:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="pValueThresholdSpinBox">
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="minimum">
+              <double>0.001000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>1.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.010000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.050000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="log2FCThresholdLabel">
+             <property name="text">
+              <string>Log2FC threshold:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="log2FCThresholdSpinBox">
+             <property name="decimals">
+              <number>2</number>
+             </property>
+             <property name="minimum">
+              <double>0.000000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>10.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.100000000000000</double>
+             </property>
+             <property name="value">
+              <double>1.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="applyFilterButton">
+             <property name="text">
+              <string>Apply Filter</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="clearFilterButton">
+             <property name="text">
+              <string>Clear Filter</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="exportButtonsLayout">
+          <item>
+           <widget class="QPushButton" name="exportResultsButton">
+            <property name="text">
+             <string>Export Results</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="saveGeneListsButton">
+            <property name="text">
+             <string>Save Gene Lists</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="visualizationTab">
+       <attribute name="title">
+        <string>Visualization</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="visualizationLayout">
+        <item>
+         <widget class="QGroupBox" name="plotControlsGroup">
+          <property name="title">
+           <string>Plot Controls</string>
+          </property>
+          <layout class="QHBoxLayout" name="plotControlsLayout">
+           <item>
+            <widget class="QLabel" name="plotTypeLabel">
+             <property name="text">
+              <string>Plot Type:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="plotTypeCombo">
+             <item>
+              <property name="text">
+               <string>Volcano Plot</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>MA Plot</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Dispersion Plot</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="colorSchemeLabel">
+             <property name="text">
+              <string>Color Scheme:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="colorSchemeCombo">
+             <item>
+              <property name="text">
+               <string>Default</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Colorblind</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="pointSizeLabel">
+             <property name="text">
+              <string>Point Size:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSpinBox" name="pointSizeSpinBox">
+             <property name="minimum">
+              <number>1</number>
+             </property>
+             <property name="maximum">
+              <number>20</number>
+             </property>
+             <property name="value">
+              <number>5</number>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="plotAreaGroup">
+          <property name="title">
+           <string>Plot Area</string>
+          </property>
+          <layout class="QVBoxLayout" name="plotAreaLayout">
+           <item>
+            <widget class="QWidget" name="plotWidget" native="true">
+             <property name="minimumSize">
+              <size>
+               <width>600</width>
+               <height>400</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="plotButtonsLayout">
+          <item>
+           <widget class="QPushButton" name="savePlotButton">
+            <property name="text">
+             <string>Save Plot</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="exportDataButton">
+            <property name="text">
+             <string>Export Data</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="printPlotButton">
+            <property name="text">
+             <string>Print</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_3">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="progressOutputGroup">
+      <property name="minimumSize">
+       <size>
+        <width>300</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>400</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="title">
+       <string>Progress Output</string>
+      </property>
+      <layout class="QVBoxLayout" name="progressOutputLayout">
+       <item>
+        <widget class="QTextEdit" name="progressOutputText">
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+         <property name="placeholderText">
+          <string>Progress and status messages will appear here...</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="progressControlsLayout">
+         <item>
+          <widget class="QPushButton" name="clearOutputButton">
+           <property name="text">
+            <string>Clear Output</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="saveOutputButton">
+           <property name="text">
+            <string>Save Output</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_7">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1366</width>
+     <height>24</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionOpenCounts"/>
+    <addaction name="actionOpenMetadata"/>
+    <addaction name="separator"/>
+    <addaction name="actionSaveResults"/>
+    <addaction name="actionExportVisualizations"/>
+    <addaction name="separator"/>
+    <addaction name="actionExit"/>
+   </widget>
+   <widget class="QMenu" name="menuAnalysis">
+    <property name="title">
+     <string>Analysis</string>
+    </property>
+    <addaction name="actionRunAnalysis"/>
+    <addaction name="actionStopAnalysis"/>
+    <addaction name="actionResetAnalysis"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+    <addaction name="actionInputTab"/>
+    <addaction name="actionAnalysisTab"/>
+    <addaction name="actionResultsTab"/>
+    <addaction name="actionVisualizationTab"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="actionAbout"/>
+    <addaction name="actionUserGuide"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuAnalysis"/>
+   <addaction name="menuView"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionOpenCounts">
+   <property name="text">
+    <string>Add Gene Count Files</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionOpenMetadata">
+   <property name="text">
+    <string>Generate Data</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+G</string>
+   </property>
+  </action>
+  <action name="actionSaveResults">
+   <property name="text">
+    <string>Save Results</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="actionExportVisualizations">
+   <property name="text">
+    <string>Export Visualizations</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+E</string>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="text">
+    <string>Exit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="actionRunAnalysis">
+   <property name="text">
+    <string>Run Analysis</string>
+   </property>
+   <property name="shortcut">
+    <string>F5</string>
+   </property>
+  </action>
+  <action name="actionStopAnalysis">
+   <property name="text">
+    <string>Stop Analysis</string>
+   </property>
+   <property name="shortcut">
+    <string>F6</string>
+   </property>
+  </action>
+  <action name="actionResetAnalysis">
+   <property name="text">
+    <string>Reset Analysis</string>
+   </property>
+   <property name="shortcut">
+    <string>F7</string>
+   </property>
+  </action>
+  <action name="actionInputTab">
+   <property name="text">
+    <string>Input Tab</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+1</string>
+   </property>
+  </action>
+  <action name="actionAnalysisTab">
+   <property name="text">
+    <string>Analysis Tab</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+2</string>
+   </property>
+  </action>
+  <action name="actionResultsTab">
+   <property name="text">
+    <string>Results Tab</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+3</string>
+   </property>
+  </action>
+  <action name="actionVisualizationTab">
+   <property name="text">
+    <string>Visualization Tab</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+4</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="text">
+    <string>About</string>
+   </property>
+  </action>
+  <action name="actionUserGuide">
+   <property name="text">
+    <string>User Guide</string>
+   </property>
+   <property name="shortcut">
+    <string>F1</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
