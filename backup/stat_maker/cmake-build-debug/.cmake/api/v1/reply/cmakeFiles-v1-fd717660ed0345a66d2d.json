@@ -1,0 +1,434 @@
+{
+	"inputs" : 
+	[
+		{
+			"path" : "CMakeLists.txt"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/CMakeFiles/3.28.1/CMakeSystem.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/CMakeSystemSpecificInitialize.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Platform/Darwin-Initialize.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/CMakeFiles/3.28.1/CMakeCCompiler.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/CMakeFiles/3.28.1/CMakeCXXCompiler.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/CMakeSystemSpecificInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/CMakeGenericSystem.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/CMakeInitializeConfigs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Platform/Darwin.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Platform/UnixPaths.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/CMakeCInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/CMakeLanguageInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Compiler/AppleClang-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Compiler/Clang.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Compiler/CMakeCommonCompilerMacros.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Compiler/GNU.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Compiler/CMakeCommonCompilerMacros.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Platform/Apple-AppleClang-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Platform/Apple-Clang-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Platform/Apple-Clang.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/CMakeCommonLanguageInclude.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/CMakeCXXInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/CMakeLanguageInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Compiler/AppleClang-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Compiler/Clang.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Platform/Apple-AppleClang-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Platform/Apple-Clang-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/Platform/Apple-Clang.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/CMakeCommonLanguageInclude.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5/Qt5ConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5/Qt5Config.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5/Qt5ModuleLocation.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Core/Qt5CoreConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Core/Qt5CoreConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Core/Qt5CoreConfigExtras.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Core/Qt5CoreConfigExtrasMkspecDir.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Core/Qt5CoreMacros.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/CMakeParseArguments.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5WidgetsConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5WidgetsConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5GuiConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5GuiConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QCocoaIntegrationPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5AccessibilitySupport/Qt5AccessibilitySupportConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5AccessibilitySupport/Qt5AccessibilitySupportConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5GuiConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5GuiConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5ThemeSupport/Qt5ThemeSupportConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5ThemeSupport/Qt5ThemeSupportConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5FontDatabaseSupport/Qt5FontDatabaseSupportConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5FontDatabaseSupport/Qt5FontDatabaseSupportConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5GraphicsSupport/Qt5GraphicsSupportConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5GraphicsSupport/Qt5GraphicsSupportConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5PrintSupport/Qt5PrintSupportConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5PrintSupport/Qt5PrintSupportConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5WidgetsConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5WidgetsConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5Widgets_QMacStylePlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5WidgetsConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5WidgetsConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5WidgetsConfigExtras.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5WidgetsMacros.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/share/cmake-3.28/Modules/CMakeParseArguments.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5PrintSupport/Qt5PrintSupport_QCocoaPrinterSupportPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5PrintSupport/Qt5PrintSupportConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5PrintSupport/Qt5PrintSupportConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5ClipboardSupport/Qt5ClipboardSupportConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5ClipboardSupport/Qt5ClipboardSupportConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QGifPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QICNSPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QICOPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QJpegPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QMacHeifPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QMacJp2Plugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QMinimalIntegrationPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5EventDispatcherSupport/Qt5EventDispatcherSupportConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5EventDispatcherSupport/Qt5EventDispatcherSupportConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QOffscreenIntegrationPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QSvgIconPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Svg/Qt5SvgConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Svg/Qt5SvgConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QSvgPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QTgaPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QTiffPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Zlib/Qt5ZlibConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Zlib/Qt5ZlibConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QTuioTouchPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Network/Qt5NetworkConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Network/Qt5NetworkConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Network/Qt5Network_QGenericEnginePlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Network/Qt5NetworkConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Network/Qt5NetworkConfig.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QWbmpPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QWebpPlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QXdgDesktopPortalThemePlugin.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5GuiConfigExtras.cmake"
+		},
+		{
+			"path" : "resources.qrc"
+		}
+	],
+	"kind" : "cmakeFiles",
+	"paths" : 
+	{
+		"build" : "/Users/venky/Projects/deepn-plus/stat_maker/cmake-build-debug",
+		"source" : "/Users/venky/Projects/deepn-plus/stat_maker"
+	},
+	"version" : 
+	{
+		"major" : 1,
+		"minor" : 0
+	}
+}

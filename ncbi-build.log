@@ -1,0 +1,4 @@
+=== Building NCBI BLAST ===
+Compiling NCBI BLAST...
+Makefile:5: /Users/venky/Projects/deepn-plus/ncbi/build/build/Makefile.mk: No such file or directory
+make[1]: *** No rule to make target `/Users/venky/Projects/deepn-plus/ncbi/build/build/Makefile.mk'.  Stop.

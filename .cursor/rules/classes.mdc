@@ -1,0 +1,15 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- Follow SOLID principles.
+- Prefer composition over inheritance.
+- Declare interfaces as abstract classes or concepts.
+- Write small classes with a single purpose.
+  - Less than 200 instructions.
+  - Less than 10 public methods.
+  - Less than 10 properties.
+- Use the Rule of Five (or Rule of Zero) for resource management.
+- Make member variables private and provide getters/setters where necessary.
+- Use const-correctness for member functions.

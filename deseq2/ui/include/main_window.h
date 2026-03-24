@@ -1,0 +1,411 @@
+#ifndef MAIN_WINDOW_H
+#define MAIN_WINDOW_H
+
+#include <QMainWindow>
+#include <QTableWidget>
+#include <QPushButton>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QSpinBox>
+#include <QDoubleSpinBox>
+#include <QLabel>
+#include <QTextEdit>
+#include <QTabWidget>
+#include <QGroupBox>
+#include <QAction>
+#include <QMenu>
+#include <QMenuBar>
+#include <QToolBar>
+#include <QStatusBar>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QGridLayout>
+#include <QProgressBar>
+#include <QThread>
+#include <QMutex>
+#include <memory>
+
+// Statistics library includes
+#include "deseq_dataset.h"
+#include "deseq_stats.h"
+#include "utils.h"
+
+// Gene count handler
+#include "gene_count_handler.h"
+
+// QCustomPlot for visualizations
+#include "qcustomplot.h"
+
+namespace Ui
+{
+    class MainWindow;
+}
+
+QT_BEGIN_NAMESPACE
+class QWidget;
+QT_END_NAMESPACE
+
+namespace deseq2
+{
+
+    /**
+     * @brief Structure to hold DESeq2 analysis results
+     */
+    struct AnalysisResults
+    {
+        Eigen::MatrixXd results;              // DESeq2 results matrix
+        std::vector<std::string> geneNames;   // Gene names
+        std::vector<std::string> sampleNames; // Sample names
+        int totalGenes;                       // Total number of genes
+        int significantGenes;                 // Number of significant genes
+        int upregulatedGenes;                 // Number of upregulated genes
+        int downregulatedGenes;               // Number of downregulated genes
+        bool isValid;                         // Whether results are valid
+        QString errorMessage;                 // Error message if invalid
+        double pValueThreshold;               // P-value threshold used
+        double log2FCThreshold;               // Log2FC threshold used
+
+        // Dispersion data for visualization
+        Eigen::VectorXd genewiseDispersions;
+        Eigen::VectorXd fittedDispersions;
+        Eigen::VectorXd baseMeans;
+    };
+
+    /**
+     * @brief Worker class for running DESeq2 analysis in background thread
+     */
+    class AnalysisWorker : public QObject
+    {
+        Q_OBJECT
+
+    public:
+        AnalysisWorker(const CombinedData &data, double pValueThreshold = 0.05);
+        ~AnalysisWorker() = default;
+
+    public slots:
+        /**
+         * @brief Run the DESeq2 analysis
+         */
+        void runAnalysis();
+
+        /**
+         * @brief Stop the analysis
+         */
+        void stopAnalysis();
+
+    signals:
+        /**
+         * @brief Emitted when analysis progress changes
+         * @param progress Progress percentage (0-100)
+         * @param message Progress message
+         */
+        void progressChanged(int progress, const QString &message);
+
+        /**
+         * @brief Emitted when analysis is finished
+         * @param results Analysis results (passed as pointer to avoid Qt signal limitations)
+         */
+        void analysisFinished(AnalysisResults *results);
+
+        /**
+         * @brief Emitted when analysis encounters an error
+         * @param errorMessage Error message
+         */
+        void analysisError(const QString &errorMessage);
+
+        /**
+         * @brief Debug signal to track analysis completion
+         * @param message Debug message
+         */
+        void debugMessage(const QString &message);
+
+        /**
+         * @brief Emitted when worker is completely finished and thread should quit
+         */
+        void finished();
+
+    private:
+        CombinedData m_inputData;
+        double m_pValueThreshold;
+        bool m_shouldStop;
+        QMutex m_stopMutex;
+
+        /**
+         * @brief Convert Qt CombinedData to Eigen matrices
+         * @param data Input combined data
+         * @return Tuple of (counts, metadata)
+         */
+        std::tuple<Eigen::MatrixXd, Eigen::MatrixXd> convertToEigenFormat(const CombinedData &data);
+    };
+
+    /**
+     * @brief Main window class for DESeq2 differential expression analysis GUI
+     *
+     * This class provides the main interface for the DESeq2 analysis application,
+     * including file input, data processing, analysis execution, and result visualization.
+     */
+    class MainWindow : public QMainWindow
+    {
+        Q_OBJECT
+
+    public:
+        /**
+         * @brief Constructor for the main window
+         * @param parent Parent widget (default: nullptr)
+         */
+        explicit MainWindow(QWidget *parent = nullptr);
+
+        /**
+         * @brief Destructor
+         */
+        ~MainWindow() override;
+
+        // Rule of Five - disable copy operations
+        MainWindow(const MainWindow &) = delete;
+        MainWindow &operator=(const MainWindow &) = delete;
+        MainWindow(MainWindow &&) = delete;
+        MainWindow &operator=(MainWindow &&) = delete;
+
+    private slots:
+        // File operations
+        void onAddGeneCountFiles();
+        void onClearFiles();
+        void onGenerateData();
+        void onExportGeneratedData();
+
+        // Group assignment
+        void onAssignGroup();
+        void onAutoAssignGroups();
+
+        // Analysis control
+        void onRunAnalysis();
+        void onStopAnalysis();
+        void onResetAnalysis();
+
+        // Analysis worker slots
+        void onAnalysisProgress(int progress, const QString &message);
+        void onAnalysisFinished(AnalysisResults *results);
+        void onAnalysisError(const QString &errorMessage);
+        void onDebugMessage(const QString &message);
+        void onThreadFinished();
+
+        // Results filtering
+        void onApplyFilter();
+        void onClearFilter();
+
+        // Export operations
+        void onExportResults();
+        void onSaveGeneLists();
+        void onExportCountMatrix();
+
+        // Visualization
+        void onPlotTypeChanged();
+        void onSavePlot();
+        void onExportPlotData();
+        void onPrintPlot();
+
+        // Progress output
+        void onClearOutput();
+        void onSaveOutput();
+
+        // Menu actions
+        void onOpenCounts();
+        void onOpenMetadata();
+        void onSaveResults();
+        void onExportVisualizations();
+        void onExit();
+        void onRunAnalysisAction();
+        void onStopAnalysisAction();
+        void onResetAnalysisAction();
+        void onInputTab();
+        void onAnalysisTab();
+        void onResultsTab();
+        void onVisualizationTab();
+        void onAbout();
+        void onUserGuide();
+
+    private:
+        /**
+         * @brief Connect UI elements from the UI file to member variables
+         */
+        void connectUiElements();
+
+        /**
+         * @brief Setup signal-slot connections
+         */
+        void setupConnections();
+
+        /**
+         * @brief Setup menu bar and toolbar
+         */
+        void setupMenusAndToolbar();
+
+        /**
+         * @brief Initialize table widgets
+         */
+        void initializeTables();
+
+        /**
+         * @brief Update UI state based on current data
+         */
+        void updateUiState();
+
+        /**
+         * @brief Add a progress message to the output
+         * @param message Message to add
+         */
+        void addProgressMessage(const QString &message);
+
+        /**
+         * @brief Update the last used directory from a file path
+         * @param filePath File path to extract directory from
+         */
+        void updateLastUsedDirectory(const QString &filePath);
+
+        /**
+         * @brief Get the last used directory for file dialogs
+         * @return Last used directory path
+         */
+        QString getLastUsedDirectory() const;
+
+        /**
+         * @brief Save the last used directory to application settings
+         */
+        void saveLastUsedDirectory();
+
+        /**
+         * @brief Load the last used directory from application settings
+         */
+        void loadLastUsedDirectory();
+
+        /**
+         * @brief Clear all data and reset UI
+         */
+        void clearAllData();
+
+        /**
+         * @brief Update results table with analysis results
+         * @param results Analysis results to display
+         */
+        void updateResultsTable(const AnalysisResults &results);
+
+        /**
+         * @brief Update results summary labels
+         * @param results Analysis results
+         */
+        void updateResultsSummary(const AnalysisResults &results);
+
+        /**
+         * @brief Apply current filter settings to results
+         */
+        void applyCurrentFilter();
+
+        /**
+         * @brief Export analysis results to CSV file
+         * @param filePath Output file path
+         * @param results Results to export
+         * @param significantOnly Whether to export only significant genes
+         * @return True if successful, false otherwise
+         */
+        bool exportResultsToCSV(const QString &filePath, const AnalysisResults &results, bool significantOnly = false);
+        bool exportCountMatrixToCSV(const QString &filePath, const CombinedData &data);
+
+        /**
+         * @brief Update counts preview table with converted integer counts instead of PPM values
+         * @param table Table widget to update
+         * @param data Combined data with PPM values to convert
+         */
+        void updateCountsPreviewWithConvertedValues(QTableWidget *table, const CombinedData &data);
+
+        // UI components
+        QTabWidget *m_tabWidget;
+        QWidget *m_inputTab;
+        QWidget *m_resultsTab;
+        QWidget *m_visualizationTab;
+        QWidget *m_analysisTab;
+
+        // Input tab components
+        QPushButton *m_addPpmFilesButton;
+        QPushButton *m_clearFilesButton;
+        QPushButton *m_generateDataButton;
+        QPushButton *m_exportGeneratedDataButton;
+        QTableWidget *m_geneCountFilesTable;
+        QLineEdit *m_groupNameEdit;
+        QPushButton *m_assignGroupButton;
+        QPushButton *m_autoAssignButton;
+        QTableWidget *m_countsPreviewTable;
+        QTableWidget *m_metadataPreviewTable;
+
+        // Analysis tab components
+        QPushButton *m_runAnalysisButton;
+        QPushButton *m_stopAnalysisButton;
+        QPushButton *m_resetAnalysisButton;
+        QProgressBar *m_analysisProgressBar;
+
+        // Results tab components
+        QLabel *m_totalGenesLabel;
+        QLabel *m_significantGenesLabel;
+        QLabel *m_upregulatedLabel;
+        QLabel *m_downregulatedLabel;
+        QTableWidget *m_resultsTable;
+        QDoubleSpinBox *m_pValueThresholdSpinBox;
+        QDoubleSpinBox *m_log2FCThresholdSpinBox;
+        QPushButton *m_applyFilterButton;
+        QPushButton *m_clearFilterButton;
+        QPushButton *m_exportResultsButton;
+        QPushButton *m_saveGeneListsButton;
+
+        // Visualization tab components
+        QComboBox *m_plotTypeCombo;
+        QComboBox *m_colorSchemeCombo;
+        QSpinBox *m_pointSizeSpinBox;
+        QCustomPlot *m_plotWidget;
+        QPushButton *m_savePlotButton;
+        QPushButton *m_exportDataButton;
+        QPushButton *m_printPlotButton;
+
+        // Plot methods
+        void plotMAPlot();
+        void plotVolcanoPlot();
+        void plotDispersionPlot();
+        void refreshPlot();
+
+        // Progress output components
+        QTextEdit *m_progressOutputText;
+        QPushButton *m_clearOutputButton;
+        QPushButton *m_saveOutputButton;
+
+        // Menu actions
+        QAction *m_actionOpenCounts;
+        QAction *m_actionOpenMetadata;
+        QAction *m_actionSaveResults;
+        QAction *m_actionExportVisualizations;
+        QAction *m_actionExit;
+        QAction *m_actionRunAnalysis;
+        QAction *m_actionStopAnalysis;
+        QAction *m_actionResetAnalysis;
+        QAction *m_actionInputTab;
+        QAction *m_actionAnalysisTab;
+        QAction *m_actionResultsTab;
+        QAction *m_actionVisualizationTab;
+        QAction *m_actionAbout;
+        QAction *m_actionUserGuide;
+
+        // Data
+        std::unique_ptr<GeneCountHandler> m_geneCountHandler;
+        CombinedData m_combinedData;
+        AnalysisResults m_analysisResults;
+
+        // Analysis components
+        std::unique_ptr<QThread> m_analysisThread;
+        std::unique_ptr<AnalysisWorker> m_analysisWorker;
+
+        // File dialog state
+        QString m_lastUsedDirectory;
+
+        std::unique_ptr<Ui::MainWindow> m_ui;
+    };
+
+} // namespace deseq2
+
+#endif // MAIN_WINDOW_H

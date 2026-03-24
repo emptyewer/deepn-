@@ -1,0 +1,72 @@
+
+# Consider dependencies only in project.
+set(CMAKE_DEPENDS_IN_PROJECT_ONLY OFF)
+
+# The set of languages for which implicit dependencies are needed:
+set(CMAKE_DEPENDS_LANGUAGES
+  )
+
+# The set of dependency files which are needed:
+set(CMAKE_DEPENDS_DEPENDENCY_FILES
+  "" "gene_count/QXlsx/QXlsx/QXlsx_autogen/timestamp" "custom" "gene_count/QXlsx/QXlsx/QXlsx_autogen/deps"
+  "/Users/venky/Projects/deepn-plus/cmake-build/gene_count/QXlsx/QXlsx/QXlsx_autogen/mocs_compilation.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/QXlsx_autogen/mocs_compilation.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/QXlsx_autogen/mocs_compilation.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QCocoaIntegrationPlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QCocoaIntegrationPlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QCocoaIntegrationPlugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QGifPlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QGifPlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QGifPlugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QICNSPlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QICNSPlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QICNSPlugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QICOPlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QICOPlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QICOPlugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QJpegPlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QJpegPlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QJpegPlugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QMacHeifPlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QMacHeifPlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QMacHeifPlugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QMacJp2Plugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QMacJp2Plugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QMacJp2Plugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QSvgIconPlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QSvgIconPlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QSvgIconPlugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QSvgPlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QSvgPlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QSvgPlugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QTgaPlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QTgaPlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QTgaPlugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QTiffPlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QTiffPlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QTiffPlugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QWbmpPlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QWbmpPlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QWbmpPlugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QWebpPlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QWebpPlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QWebpPlugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5PrintSupport/Qt5PrintSupport_QCocoaPrinterSupportPlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5PrintSupport/Qt5PrintSupport_QCocoaPrinterSupportPlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5PrintSupport/Qt5PrintSupport_QCocoaPrinterSupportPlugin_Import.cpp.o.d"
+  "/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5Widgets_QMacStylePlugin_Import.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5Widgets_QMacStylePlugin_Import.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5Widgets_QMacStylePlugin_Import.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxabstractooxmlfile.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxabstractooxmlfile.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxabstractooxmlfile.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxabstractsheet.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxabstractsheet.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxabstractsheet.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxcell.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcell.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcell.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxcellformula.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcellformula.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcellformula.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxcelllocation.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcelllocation.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcelllocation.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxcellrange.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcellrange.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcellrange.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxcellreference.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcellreference.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcellreference.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxchart.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxchart.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxchart.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxchartsheet.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxchartsheet.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxchartsheet.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxcolor.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcolor.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcolor.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxconditionalformatting.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxconditionalformatting.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxconditionalformatting.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxcontenttypes.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcontenttypes.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxcontenttypes.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxdatavalidation.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdatavalidation.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdatavalidation.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxdatetype.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdatetype.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdatetype.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxdocpropsapp.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdocpropsapp.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdocpropsapp.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxdocpropscore.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdocpropscore.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdocpropscore.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxdocument.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdocument.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdocument.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxdrawing.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdrawing.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdrawing.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxdrawinganchor.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdrawinganchor.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxdrawinganchor.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxformat.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxformat.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxformat.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxmediafile.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxmediafile.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxmediafile.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxnumformatparser.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxnumformatparser.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxnumformatparser.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxrelationships.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxrelationships.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxrelationships.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxrichstring.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxrichstring.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxrichstring.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxsharedstrings.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxsharedstrings.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxsharedstrings.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxsimpleooxmlfile.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxsimpleooxmlfile.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxsimpleooxmlfile.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxstyles.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxstyles.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxstyles.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxtheme.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxtheme.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxtheme.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxutility.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxutility.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxutility.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxworkbook.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxworkbook.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxworkbook.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxworksheet.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxworksheet.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxworksheet.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxzipreader.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxzipreader.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxzipreader.cpp.o.d"
+  "/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/source/xlsxzipwriter.cpp" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxzipwriter.cpp.o" "gcc" "gene_count/QXlsx/QXlsx/CMakeFiles/QXlsx.dir/source/xlsxzipwriter.cpp.o.d"
+  )
+
+# Targets to which this target links which contain Fortran sources.
+set(CMAKE_Fortran_TARGET_LINKED_INFO_FILES
+  )
+
+# Targets to which this target links which contain Fortran sources.
+set(CMAKE_Fortran_TARGET_FORWARD_LINKED_INFO_FILES
+  )
+
+# Fortran module output directory.
+set(CMAKE_Fortran_TARGET_MODULE_DIR "")

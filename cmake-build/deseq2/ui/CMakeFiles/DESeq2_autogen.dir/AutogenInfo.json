@@ -1,0 +1,245 @@
+{
+	"BUILD_DIR" : "/Users/venky/Projects/deepn-plus/cmake-build/deseq2/ui/DESeq2_autogen",
+	"CMAKE_BINARY_DIR" : "/Users/venky/Projects/deepn-plus/cmake-build",
+	"CMAKE_CURRENT_BINARY_DIR" : "/Users/venky/Projects/deepn-plus/cmake-build/deseq2/ui",
+	"CMAKE_CURRENT_SOURCE_DIR" : "/Users/venky/Projects/deepn-plus/deseq2/ui",
+	"CMAKE_EXECUTABLE" : "/opt/homebrew/bin/cmake",
+	"CMAKE_LIST_FILES" : 
+	[
+		"/Users/venky/Projects/deepn-plus/deseq2/ui/CMakeLists.txt",
+		"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5/Qt5ConfigVersion.cmake",
+		"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5/Qt5Config.cmake",
+		"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5/Qt5ModuleLocation.cmake",
+		"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Core/Qt5CoreConfigVersion.cmake",
+		"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Core/Qt5CoreConfig.cmake",
+		"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5WidgetsConfigVersion.cmake",
+		"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5WidgetsConfig.cmake",
+		"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5UiTools/Qt5UiToolsConfigVersion.cmake",
+		"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5UiTools/Qt5UiToolsConfig.cmake",
+		"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5PrintSupport/Qt5PrintSupportConfigVersion.cmake",
+		"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5PrintSupport/Qt5PrintSupportConfig.cmake",
+		"/opt/homebrew/share/eigen3/cmake/Eigen3ConfigVersion.cmake",
+		"/opt/homebrew/share/eigen3/cmake/Eigen3Config.cmake"
+	],
+	"CMAKE_SOURCE_DIR" : "/Users/venky/Projects/deepn-plus",
+	"CROSS_CONFIG" : false,
+	"DEP_FILE" : "/Users/venky/Projects/deepn-plus/cmake-build/deseq2/ui/DESeq2_autogen/deps",
+	"DEP_FILE_RULE_NAME" : "DESeq2_autogen/timestamp",
+	"HEADERS" : 
+	[
+		[
+			"/Users/venky/Projects/deepn-plus/QCustomplot/qcustomplot.h",
+			"MU",
+			"YJ3NTSLLLC/moc_qcustomplot.cpp",
+			null
+		],
+		[
+			"/Users/venky/Projects/deepn-plus/deseq2/ui/include/gene_count_handler.h",
+			"MU",
+			"6YEA5652QU/moc_gene_count_handler.cpp",
+			null
+		],
+		[
+			"/Users/venky/Projects/deepn-plus/deseq2/ui/include/main_window.h",
+			"MU",
+			"6YEA5652QU/moc_main_window.cpp",
+			null
+		]
+	],
+	"HEADER_EXTENSIONS" : [ "h", "hh", "h++", "hm", "hpp", "hxx", "in", "txx" ],
+	"INCLUDE_DIR" : "/Users/venky/Projects/deepn-plus/cmake-build/deseq2/ui/DESeq2_autogen/include",
+	"MOC_COMPILATION_FILE" : "/Users/venky/Projects/deepn-plus/cmake-build/deseq2/ui/DESeq2_autogen/mocs_compilation.cpp",
+	"MOC_DEFINITIONS" : 
+	[
+		"QT_ACCESSIBILITY_SUPPORT_LIB",
+		"QT_CLIPBOARD_SUPPORT_LIB",
+		"QT_CORE_LIB",
+		"QT_FONTDATABASE_SUPPORT_LIB",
+		"QT_GRAPHICS_SUPPORT_LIB",
+		"QT_GUI_LIB",
+		"QT_NO_DEBUG",
+		"QT_PRINTSUPPORT_LIB",
+		"QT_SVG_LIB",
+		"QT_THEME_SUPPORT_LIB",
+		"QT_UITOOLS_LIB",
+		"QT_WIDGETS_LIB",
+		"QT_ZLIB_LIB"
+	],
+	"MOC_DEPEND_FILTERS" : 
+	[
+		[
+			"Q_PLUGIN_METADATA",
+			"[\n][ \t]*Q_PLUGIN_METADATA[ \t]*\\([^\\)]*FILE[ \t]*\"([^\"]+)\""
+		]
+	],
+	"MOC_INCLUDES" : 
+	[
+		"/Users/venky/Projects/deepn-plus/deseq2/ui/include",
+		"/Users/venky/Projects/deepn-plus/deseq2/statistics/include",
+		"/Users/venky/Projects/deepn-plus/QCustomplot",
+		"/Users/venky/Projects/deepn-plus/gene_count/QXlsx/QXlsx/header",
+		"/Users/venky/Softwares/qt5-static/include",
+		"/Users/venky/Softwares/qt5-static/include/QtCore",
+		"/Users/venky/Softwares/qt5-static/mkspecs/macx-clang",
+		"/Users/venky/Softwares/qt5-static/include/QtWidgets",
+		"/Users/venky/Softwares/qt5-static/include/QtGui",
+		"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/OpenGL.framework/Headers",
+		"/Users/venky/Softwares/qt5-static/include/QtAccessibilitySupport",
+		"/Users/venky/Softwares/qt5-static/include/QtThemeSupport",
+		"/Users/venky/Softwares/qt5-static/include/QtFontDatabaseSupport",
+		"/Users/venky/Softwares/qt5-static/include/QtGraphicsSupport",
+		"/Users/venky/Softwares/qt5-static/include/QtPrintSupport",
+		"/Users/venky/Softwares/qt5-static/include/QtClipboardSupport",
+		"/Users/venky/Softwares/qt5-static/include/QtSvg",
+		"/Users/venky/Softwares/qt5-static/include/QtZlib",
+		"/Users/venky/Softwares/qt5-static/include/QtUiTools",
+		"/opt/homebrew/include/eigen3",
+		"/Users/venky/Softwares/qt5-static/include/QtGui/5.15.13",
+		"/Users/venky/Softwares/qt5-static/include/QtGui/5.15.13/QtGui",
+		"/Users/venky/Softwares/qt5-static/include/QtCore/5.15.13",
+		"/Users/venky/Softwares/qt5-static/include/QtCore/5.15.13/QtCore",
+		"/usr/local/include",
+		"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1",
+		"/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include",
+		"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include",
+		"/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include"
+	],
+	"MOC_MACRO_NAMES" : [ "Q_OBJECT", "Q_GADGET", "Q_NAMESPACE", "Q_NAMESPACE_EXPORT" ],
+	"MOC_OPTIONS" : [],
+	"MOC_PATH_PREFIX" : false,
+	"MOC_PREDEFS_CMD" : 
+	[
+		"/usr/bin/c++",
+		"-std=c++17",
+		"-w",
+		"-dM",
+		"-E",
+		"/opt/homebrew/share/cmake/Modules/CMakeCXXCompilerABI.cpp"
+	],
+	"MOC_PREDEFS_FILE" : "/Users/venky/Projects/deepn-plus/cmake-build/deseq2/ui/DESeq2_autogen/moc_predefs.h",
+	"MOC_RELAXED_MODE" : false,
+	"MOC_SKIP" : [],
+	"MULTI_CONFIG" : false,
+	"PARALLEL" : 10,
+	"PARSE_CACHE_FILE" : "/Users/venky/Projects/deepn-plus/cmake-build/deseq2/ui/CMakeFiles/DESeq2_autogen.dir/ParseCache.txt",
+	"QT_MOC_EXECUTABLE" : "/Users/venky/Softwares/qt5-static/bin/moc",
+	"QT_UIC_EXECUTABLE" : "/Users/venky/Softwares/qt5-static/bin/uic",
+	"QT_VERSION_MAJOR" : 5,
+	"QT_VERSION_MINOR" : 15,
+	"SETTINGS_FILE" : "/Users/venky/Projects/deepn-plus/cmake-build/deseq2/ui/CMakeFiles/DESeq2_autogen.dir/AutogenUsed.txt",
+	"SOURCES" : 
+	[
+		[
+			"/Users/venky/Projects/deepn-plus/QCustomplot/qcustomplot.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Projects/deepn-plus/deseq2/statistics/src/deseq_dataset.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Projects/deepn-plus/deseq2/statistics/src/deseq_stats.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Projects/deepn-plus/deseq2/statistics/src/utils.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Projects/deepn-plus/deseq2/ui/src/gene_count_handler.cpp",
+			"MU",
+			null
+		],
+		[ "/Users/venky/Projects/deepn-plus/deseq2/ui/src/main.cpp", "MU", null ],
+		[
+			"/Users/venky/Projects/deepn-plus/deseq2/ui/src/main_window.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QCocoaIntegrationPlugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QGifPlugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QICNSPlugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QICOPlugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QJpegPlugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QMacHeifPlugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QMacJp2Plugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QSvgIconPlugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QSvgPlugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QTgaPlugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QTiffPlugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QWbmpPlugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Gui/Qt5Gui_QWebpPlugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5PrintSupport/Qt5PrintSupport_QCocoaPrinterSupportPlugin_Import.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/venky/Softwares/qt5-static/lib/cmake/Qt5Widgets/Qt5Widgets_QMacStylePlugin_Import.cpp",
+			"MU",
+			null
+		]
+	],
+	"UIC_OPTIONS" : [],
+	"UIC_SEARCH_PATHS" : [],
+	"UIC_SKIP" : [],
+	"UIC_UI_FILES" : [],
+	"USE_BETTER_GRAPH" : false,
+	"VERBOSITY" : 0
+}

@@ -1,0 +1,17 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- Use modular architecture
+- Organize code into logical directories:
+  - include/ for header files
+  - src/ for source files
+  - test/ for test files
+  - lib/ for libraries
+  - doc/ for documentation
+- Use CMake or similar build system.
+- Separate interface (.h) from implementation (.cpp).
+- Use namespaces to organize code logically.
+- Create a core namespace for foundational components.
+- Create a utils namespace for utility functions.

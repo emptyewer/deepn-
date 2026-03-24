@@ -1,0 +1,13 @@
+Skipping GeneCount++...
+Transfer starting: 8 files
+Skip newer 'MM10GeneList2023.unique.fasta'
+Skip newer 'MM10GeneList2023.unique.fasta.ndb-lock'
+Skip newer 'MM10GeneList2023.unique.fasta.ntf-lock'
+Skip newer 'MM10GeneList2023.unique.fasta.zip'
+Skip newer 'SacCer3_yeast_GeneList2023.unique.fasta'
+Skip newer 'SacCer3_yeast_GeneList2023.unique.fasta.zip'
+Skip newer 'hg38GeneList2023.unique.fasta'
+Skip newer 'hg38GeneList2023.unique.fasta.zip'
+
+sent 659 bytes  received 20 bytes  35549 bytes/sec
+total size is 292M  speedup is 429484.84

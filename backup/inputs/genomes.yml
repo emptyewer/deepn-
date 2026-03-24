@@ -1,0 +1,21 @@
+genomes: 
+  - name: hORFeome_TAB (hg38)
+    prey_library: pGal4AD+humanORFeomeFragments
+    orf_data: hg38GeneList
+    genecount_library: hg38exonDict.p
+    orf_lookup_table: hg38GeneList
+    blast_database: hg38NMgenes.db
+    junction_sequence: CCTCTGCGAGTGGTGGCAACTCTGTGGCCGGCCCAGCCGGCCATGTCAGC
+    chromosomes_list: hg38_Chr_List
+  
+  - name: hORFeome_TAB (hg38) (2)
+    prey_library: pGal4AD+humanORFeomeFragments
+    orf_data: hg38GeneList
+    genecount_library: hg38exonDict.p
+    orf_lookup_table: hg38GeneList
+    blast_database: hg38NMgenes.db
+    junction_sequence: CCTCTGCGAGTGGTGGCAACTCTGTGGCCGGCCCAGCCGGCCATGTCAGC
+    chromosomes_list: hg38_Chr_List
+
+docker push venkykrishna/deepn:latest
+cd .. && git push origin master
