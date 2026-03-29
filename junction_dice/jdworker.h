@@ -45,6 +45,7 @@ class JDWorker : public QObject {
   QProcess process;
   QStringList readNames;
   QString readDepthFileName;
+  QString dbConnectionName;
   QSqlDatabase db;
   QSqlQuery query;
   void doDice();

@@ -1,12 +1,6 @@
-[submodule "samtools"]
-	path = samtools
-	url = https://github.com/samtools/samtools
-[submodule "statgen"]
-	path = statgen
-	url = https://github.com/statgen/libStatGen
-[submodule "ncbi/zlib"]
-	path = ncbi/zlib
-	url = https://github.com/madler/zlib
+[submodule "ncbi"]
+	path = ncbi
+	url = https://github.com/ncbi/ncbi-cxx-toolkit-public
 [submodule "zlib"]
 	path = zlib
 	url = https://github.com/madler/zlib

@@ -5,6 +5,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+#include <QRegularExpression>
 #include <QtSql>
 
 #include "qglobal.h"
@@ -13,6 +14,7 @@
 JDWorker::JDWorker(JDStat* jdstat, int fcount) {
   fileCount = fcount;
   stat = jdstat;
+  dbConnectionName = "jdDb_" + QUuid::createUuid().toString(QUuid::Id128);
   QFileInfo fileInfo(stat->dstat.input);
   stat->dstat.fileSize = fileInfo.size();
   QString basename = fileInfo.baseName();
@@ -45,7 +47,7 @@ JDWorker::JDWorker(JDStat* jdstat, int fcount) {
 }
 
 void JDWorker::createDepthDatabase() {
-  db = QSqlDatabase::addDatabase("QSQLITE");
+  db = QSqlDatabase::addDatabase("QSQLITE", dbConnectionName);
   db.setDatabaseName(readDepthFileName);
   QFileInfo dbInfo(readDepthFileName);
   if (dbInfo.exists()) {
@@ -54,7 +56,7 @@ void JDWorker::createDepthDatabase() {
   if (!db.open()) {
     qDebug() << "Error opening database";
   }
-  query = QSqlQuery(db);
+  query = QSqlQuery(QSqlDatabase::database(dbConnectionName));
   query.exec("PRAGMA auto_vacuum = FULL;");
   query.exec("PRAGMA journal_mode = WAL;");
 
@@ -77,17 +79,26 @@ void JDWorker::mapCallBack() {
   stat->mstat.elapsedTime = elapsedTimer.elapsed() / 1000;
   if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
     QTextStream in(&file);
-    in.seek(file.size() - 4096);  // move to the end of the file
-    QString line = in.readLine();
-    while (!line.startsWith("@")) {
-      line = in.readLine();
+    if (file.size() > 4096) {
+      in.seek(file.size() - 4096);
+      in.readLine();  // skip partial first line
     }
-    if (!line.isNull()) {
-      stat->mstat.currentRead = line.split("\t").at(0);
-      stat->mstat.percentComplete =
-          readNames.indexOf(stat->mstat.currentRead) * 100 / readNames.length();
+    // Read the last complete line with a read name
+    QString lastRead;
+    while (!in.atEnd()) {
+      QString line = in.readLine();
+      if (!line.isEmpty()) {
+        lastRead = line.split("\t").at(0);
+      }
     }
     file.close();
+    if (!lastRead.isEmpty()) {
+      stat->mstat.currentRead = lastRead;
+      int idx = readNames.indexOf(lastRead);
+      if (idx >= 0 && readNames.length() > 0) {
+        stat->mstat.percentComplete = idx * 100 / readNames.length();
+      }
+    }
   }
 
   if (stat->mstat.percentComplete < 98) {
@@ -197,10 +208,8 @@ void JDWorker::readDice() {
 void JDWorker::doDice() {
   QString line;
   // TODO: Go for 27 base pairs instead of 21
-  static QRegularExpression pattern(
-      jseq_pattern, QRegularExpression::OptimizeOnFirstUsageOption);
-  static QRegularExpression repeat_pattern(
-      repeats_sequence, QRegularExpression::OptimizeOnFirstUsageOption);
+  QRegularExpression pattern(jseq_pattern);
+  QRegularExpression repeat_pattern(repeats_sequence);
   QFile of(stat->dstat.output);
   of.open(QIODevice::WriteOnly | QIODevice::Text);
   QTextStream out(&of);
@@ -220,9 +229,9 @@ void JDWorker::doDice() {
       if (c == '\n') {
         if (line.startsWith("@")) {
           stat->dstat.totalReads += 1;
-          stat->dstat.currentRead = line.split(QRegExp("\\s+")).at(0);
+          stat->dstat.currentRead = line.split(QRegularExpression("\\s+")).at(0);
           readNames.append(stat->dstat.currentRead);
-        } else if (line.contains(QRegExp("^[ATGCN]+$"))) {
+        } else if (line.contains(QRegularExpression("^[ATGCN]+$"))) {
           QRegularExpressionMatch repeat_match = repeat_pattern.match(line);
           if (!repeat_match.hasMatch()) {
             QString reverseSeq = reverseComplement(line);
@@ -283,7 +292,6 @@ void JDWorker::doDice() {
         line += c;
       }
     }
-    if (stat->dstat.totalReads > 1000000) break;  // TODO: REmove this line
     if (cnt == 0) break;
   }
   if (sql_ids.length() > 0) {
@@ -352,16 +360,17 @@ void JDWorker::doMapping() {
                                 QDir::separator() + "Tools");
   } else if (QSysInfo::productType() == "windows" ||
              QSysInfo::productType() == "winrt") {
-    exec_path = application_directory.cdUp();
+    application_directory.cdUp();
+    exec_path = application_directory.path();
   } else {
-    exec_path = application_directory.cdUp();
+    application_directory.cdUp();
+    exec_path = application_directory.path();
   }
   if (stat->mstat.algo == blat) {
     exec_path = QDir::cleanPath(exec_path + QDir::separator() + "blat");
-    args << "-tileSize=18"
+    args << stat->mstat.db << stat->dstat.output << stat->mstat.output
          << "-minIdentity=98"
-         << "-out=blast8" << stat->mstat.db << stat->dstat.output
-         << stat->mstat.output;
+         << "-out=blast8";
   } else if (stat->mstat.algo == blastn || stat->mstat.algo == megablast) {
     exec_path = QDir::cleanPath(exec_path + QDir::separator() + "blastn");
     QString options =
@@ -380,10 +389,19 @@ void JDWorker::doMapping() {
            << "megablast"
            << "-num_threads" << QString("%1").arg(QThread::idealThreadCount());
     }
-    args << options.split(QRegExp("\\s+")) << "-query" << stat->dstat.output
+    args << options.split(QRegularExpression("\\s+")) << "-query" << stat->dstat.output
          << "-db" << stat->mstat.db << "-out" << stat->mstat.output;
   }
   stat->mstat.map_command = exec_path + " " + args.join(" ");
+  qDebug() << "Launching:" << stat->mstat.map_command;
   mapTimer->start(3000);
-  process.startDetached(QDir::toNativeSeparators(exec_path), args);
+  // Launch as background process via system() since QProcess::startDetached
+  // silently fails from worker threads on macOS
+  QString cmd = "\"" + QDir::toNativeSeparators(exec_path) + "\"";
+  for (const QString &arg : args) {
+    cmd += " \"" + arg + "\"";
+  }
+  cmd += " &";
+  qDebug() << "system():" << cmd;
+  system(cmd.toUtf8().constData());
 }

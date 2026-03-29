@@ -43,14 +43,17 @@ namespace deseq2
     {
         int n_genes = dds_.getCounts().cols();
 
+        const Eigen::VectorXd size_factors = dds_.getSizeFactors();
+        const Eigen::VectorXd &dispersions = dds_.getDispersions();
+        const Eigen::MatrixXd &counts = dds_.getCounts();
+
         for (int j = 0; j < n_genes; ++j)
         {
             Eigen::VectorXd gene_lfc = lfc_.row(j);
-            double disp = dds_.getDispersions()(j);
+            double disp = dispersions(j);
 
             // Calculate mu for this gene
-            Eigen::VectorXd gene_counts = dds_.getCounts().col(j);
-            Eigen::VectorXd size_factors = dds_.getSizeFactors();
+            Eigen::VectorXd gene_counts = counts.col(j);
             Eigen::VectorXd mu = fitLinMu(gene_counts, size_factors, design_matrix_, 0.5);
 
             // Perform Wald test

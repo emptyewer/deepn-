@@ -29,12 +29,14 @@
 #include "deseq_dataset.h"
 #include "deseq_stats.h"
 #include "utils.h"
+#include "y2h_scores.h"
 
 // Gene count handler
 #include "gene_count_handler.h"
 
-// QCustomPlot for visualizations
-#include "qcustomplot.h"
+// Qt Charts for visualizations (migrated from QCustomPlot)
+#include <QChartView>
+#include <QChart>
 
 namespace Ui
 {
@@ -69,6 +71,11 @@ namespace deseq2
         Eigen::VectorXd genewiseDispersions;
         Eigen::VectorXd fittedDispersions;
         Eigen::VectorXd baseMeans;
+
+        // Y2H-SCORES results
+        std::vector<deseq2::EnrichmentResult> enrichmentScores;
+        std::vector<deseq2::InFrameResult> inFrameScores;
+        std::vector<deseq2::Y2HScore> y2hScores;
     };
 
     /**
@@ -208,6 +215,12 @@ namespace deseq2
         void onClearOutput();
         void onSaveOutput();
 
+        // Results table context menu
+        void onResultsContextMenu(const QPoint &pos);
+        void onOpenInMultiQuery();
+        void onOpenInReadDepth();
+        void onCopyGeneName();
+
         // Menu actions
         void onOpenCounts();
         void onOpenMetadata();
@@ -324,6 +337,11 @@ namespace deseq2
         QWidget *m_visualizationTab;
         QWidget *m_analysisTab;
 
+        // Analysis settings
+        QComboBox *m_analysisModeCombo;
+        QDoubleSpinBox *m_ppmThresholdSpinBox_y2h;
+        QComboBox *m_groupTypeCombo;
+
         // Input tab components
         QPushButton *m_addPpmFilesButton;
         QPushButton *m_clearFilesButton;
@@ -359,7 +377,7 @@ namespace deseq2
         QComboBox *m_plotTypeCombo;
         QComboBox *m_colorSchemeCombo;
         QSpinBox *m_pointSizeSpinBox;
-        QCustomPlot *m_plotWidget;
+        QChartView *m_plotWidget;
         QPushButton *m_savePlotButton;
         QPushButton *m_exportDataButton;
         QPushButton *m_printPlotButton;
@@ -402,6 +420,11 @@ namespace deseq2
 
         // File dialog state
         QString m_lastUsedDirectory;
+        QString m_resultsSqlitePath;
+
+        // SQLite output
+        void writeResultsToSqlite(const AnalysisResults &results);
+        bool exportSqliteToCSV(const QString &csvPath, bool significantOnly = false);
 
         std::unique_ptr<Ui::MainWindow> m_ui;
     };

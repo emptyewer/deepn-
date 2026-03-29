@@ -1,6 +1,5 @@
 #include "main_window.h"
 #include "ui_mainwindow.h"
-#include "qcustomplot.h"
 #include <QApplication>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -16,7 +15,25 @@
 #include <QThread>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QPainter>
+#include <QPrinter>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QClipboard>
+#include <QProcess>
 #include <stdexcept>
+#include <algorithm>
+#include <QLegendMarker>
+
+// Y2H-SCORES library
+#include "y2h_scores.h"
+
+// Qt Charts (replaces QCustomPlot)
+#include <QScatterSeries>
+#include <QLineSeries>
+#include <QValueAxis>
+#include <QLegend>
 
 namespace deseq2
 {
@@ -146,18 +163,33 @@ namespace deseq2
             analysisResults.fittedDispersions = dds.getFittedDispersions();
             analysisResults.baseMeans = dds.getNormedMeans();
 
-            // Convert gene names and sample names
-            analysisResults.geneNames.reserve(m_inputData.geneNames.size());
+            // Convert gene names and sample names to std::vector<std::string>
+            std::vector<std::string> geneNames_std;
+            geneNames_std.reserve(m_inputData.geneNames.size());
             for (const auto &gene : m_inputData.geneNames)
             {
-                analysisResults.geneNames.push_back(gene.toStdString());
+                geneNames_std.push_back(gene.toStdString());
             }
+            analysisResults.geneNames = geneNames_std;
 
             analysisResults.sampleNames.reserve(m_inputData.sampleNames.size());
             for (const auto &sample : m_inputData.sampleNames)
             {
                 analysisResults.sampleNames.push_back(sample.toStdString());
             }
+
+            // Y2H-SCORES: Enrichment scoring
+            emit progressChanged(96, "Computing Y2H enrichment scores...");
+            deseq2::EnrichmentScorer enrichmentScorer;
+            auto enrichmentResults = enrichmentScorer.compute(results, geneNames_std, "analysis", 1.0, 0.0);
+
+            // Y2H-SCORES: Borda aggregation (enrichment only for now, no junction data in this context)
+            emit progressChanged(97, "Computing Y2H Borda aggregation...");
+            deseq2::BordaAggregator borda;
+            auto y2hResults = borda.aggregate(enrichmentResults, {}, {});
+
+            analysisResults.enrichmentScores = enrichmentResults;
+            analysisResults.y2hScores = y2hResults;
 
             // Calculate summary statistics
             analysisResults.totalGenes = results.rows();
@@ -359,6 +391,11 @@ namespace deseq2
         m_resultsTab = m_ui->resultsTab;
         m_visualizationTab = m_ui->visualizationTab;
         m_analysisTab = nullptr; // Not present in UI file
+        // Analysis settings
+        m_analysisModeCombo = m_ui->analysisModeCombo;
+        m_ppmThresholdSpinBox_y2h = m_ui->ppmThresholdSpinBox;
+        m_groupTypeCombo = m_ui->groupTypeCombo;
+
         // Input tab elements
         m_addPpmFilesButton = m_ui->addPpmFilesButton;
         m_clearFilesButton = m_ui->clearFilesButton;
@@ -400,12 +437,18 @@ namespace deseq2
         m_plotTypeCombo = m_ui->plotTypeCombo;
         m_colorSchemeCombo = m_ui->colorSchemeCombo;
         m_pointSizeSpinBox = m_ui->pointSizeSpinBox;
-        // Replace the plain QWidget from UI with a QCustomPlot
+        // Replace the plain QWidget from UI with a QChartView (Qt Charts)
         {
             QWidget *placeholder = m_ui->plotWidget;
-            m_plotWidget = new QCustomPlot(placeholder->parentWidget());
+            m_plotWidget = new QChartView(placeholder->parentWidget());
             m_plotWidget->setMinimumSize(placeholder->minimumSize());
             m_plotWidget->setSizePolicy(placeholder->sizePolicy());
+            m_plotWidget->setRenderHint(QPainter::Antialiasing);
+
+            // Create an initial empty chart
+            QChart *chart = new QChart();
+            chart->setTitle("No data - run analysis first");
+            m_plotWidget->setChart(chart);
 
             // Replace in the layout
             QLayout *parentLayout = placeholder->parentWidget()->layout();
@@ -640,6 +683,9 @@ namespace deseq2
             m_resultsTable->setAlternatingRowColors(true);
             m_resultsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
             m_resultsTable->setSortingEnabled(true);
+            m_resultsTable->setContextMenuPolicy(Qt::CustomContextMenu);
+            connect(m_resultsTable, &QTableWidget::customContextMenuRequested,
+                    this, &MainWindow::onResultsContextMenu);
         }
     }
 
@@ -787,7 +833,7 @@ namespace deseq2
             static_cast<QWidget *>(this),
             "Select Gene Count Files",
             m_lastUsedDirectory,
-            "Gene Count Files (*.xlsx *.csv);;XLSX Files (*.xlsx);;CSV Files (*.csv);;All Files (*)");
+            "Gene Count Files (*.db *.sqlite *.csv);;SQLite Databases (*.db *.sqlite);;CSV Files (*.csv);;All Files (*)");
 
         if (!fileNames.isEmpty())
         {
@@ -976,18 +1022,28 @@ namespace deseq2
     // Slot implementations - Group assignment
     void MainWindow::onAssignGroup()
     {
-        if (!m_groupNameEdit || m_groupNameEdit->text().isEmpty())
-        {
-            QMessageBox::warning(static_cast<QWidget *>(this), "Warning", "Please enter a group name.");
-            return;
-        }
-
         if (!m_geneCountFilesTable)
-        {
+            return;
+
+        // Get group name from combo or custom text
+        QString groupName;
+        if (m_groupTypeCombo) {
+            QString selected = m_groupTypeCombo->currentText();
+            if (selected == "Custom...") {
+                if (!m_groupNameEdit || m_groupNameEdit->text().isEmpty()) {
+                    QMessageBox::warning(this, "Warning", "Please enter a custom group name.");
+                    return;
+                }
+                groupName = m_groupNameEdit->text();
+            } else {
+                groupName = selected;
+            }
+        } else if (m_groupNameEdit && !m_groupNameEdit->text().isEmpty()) {
+            groupName = m_groupNameEdit->text();
+        } else {
+            QMessageBox::warning(this, "Warning", "Please select or enter a group name.");
             return;
         }
-
-        QString groupName = m_groupNameEdit->text();
         QList<QTableWidgetItem *> selectedItems = m_geneCountFilesTable->selectedItems();
 
         if (selectedItems.isEmpty())
@@ -1131,7 +1187,8 @@ namespace deseq2
                 this, [this]()
                 { addProgressMessage("DEBUG: Worker finished signal received"); });
 
-        // Start analysis
+        // Start analysis (large stack for Eigen matrix operations on many genes)
+        m_analysisThread->setStackSize(64 * 1024 * 1024); // 64MB
         m_analysisThread->start();
     }
 
@@ -1244,8 +1301,113 @@ namespace deseq2
                                .arg(results->significantGenes)
                                .arg(results->totalGenes));
 
+        // Write results to SQLite
+        writeResultsToSqlite(*results);
+
         // Refresh visualization plot with new results
         refreshPlot();
+    }
+
+    void MainWindow::writeResultsToSqlite(const AnalysisResults &results)
+    {
+        // Determine output path from the first input file's directory
+        QString outputPath;
+        if (!m_geneCountHandler->getGeneCountFiles().isEmpty()) {
+            QFileInfo fi(m_geneCountHandler->getGeneCountFiles().first().fileName);
+            outputPath = fi.absolutePath() + "/deseq2_results.sqlite";
+        } else {
+            outputPath = m_lastUsedDirectory + "/deseq2_results.sqlite";
+        }
+        m_resultsSqlitePath = outputPath;
+
+        QString connName = "deseq2_results_write";
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connName);
+            db.setDatabaseName(outputPath);
+            if (!db.open()) {
+                addProgressMessage("Error: cannot write results to " + outputPath);
+                return;
+            }
+
+            QSqlQuery q(db);
+            q.exec("DROP TABLE IF EXISTS deseq2_results");
+            q.exec("CREATE TABLE deseq2_results ("
+                   "gene TEXT PRIMARY KEY, "
+                   "base_mean REAL, "
+                   "log2_fold_change REAL, "
+                   "lfc_se REAL, "
+                   "stat REAL, "
+                   "pvalue REAL, "
+                   "padj REAL, "
+                   "enrichment TEXT, "
+                   "enrichment_score REAL, "
+                   "borda_score REAL)");
+
+            // Build lookup maps from Y2H-SCORES results by gene name
+            std::map<std::string, double> enrichmentScoreMap;
+            for (const auto &er : results.enrichmentScores) {
+                enrichmentScoreMap[er.gene] = er.total_score;
+            }
+            std::map<std::string, double> bordaScoreMap;
+            for (const auto &y2h : results.y2hScores) {
+                bordaScoreMap[y2h.gene] = y2h.borda_score;
+            }
+
+            db.transaction();
+            q.prepare("INSERT INTO deseq2_results VALUES "
+                      "(:gene, :basemean, :lfc, :se, :stat, :pval, :padj, :enrich, "
+                      ":enrichment_score, :borda_score)");
+
+            for (int i = 0; i < results.results.rows(); i++) {
+                double padj = results.results(i, 5);
+                double lfc = results.results(i, 1);
+                QString enrichment = "ns";
+                if (!std::isnan(padj) && padj < results.pValueThreshold) {
+                    enrichment = (lfc > 0) ? "enriched" : "depleted";
+                }
+
+                const std::string &geneName = results.geneNames[i];
+                double escore = 0.0;
+                auto esIt = enrichmentScoreMap.find(geneName);
+                if (esIt != enrichmentScoreMap.end()) {
+                    escore = esIt->second;
+                }
+                double bscore = 0.0;
+                auto bsIt = bordaScoreMap.find(geneName);
+                if (bsIt != bordaScoreMap.end()) {
+                    bscore = bsIt->second;
+                }
+
+                q.bindValue(":gene", QString::fromStdString(geneName));
+                q.bindValue(":basemean", results.results(i, 0));
+                q.bindValue(":lfc", lfc);
+                q.bindValue(":se", results.results(i, 2));
+                q.bindValue(":stat", results.results(i, 3));
+                q.bindValue(":pval", results.results(i, 4));
+                q.bindValue(":padj", padj);
+                q.bindValue(":enrich", enrichment);
+                q.bindValue(":enrichment_score", escore);
+                q.bindValue(":borda_score", bscore);
+                q.exec();
+            }
+
+            // Summary table
+            q.exec("DROP TABLE IF EXISTS analysis_summary");
+            q.exec("CREATE TABLE analysis_summary (key TEXT PRIMARY KEY, value TEXT)");
+            q.prepare("INSERT INTO analysis_summary VALUES (:key, :value)");
+            q.bindValue(":key", "total_genes"); q.bindValue(":value", QString::number(results.totalGenes)); q.exec();
+            q.bindValue(":key", "significant_genes"); q.bindValue(":value", QString::number(results.significantGenes)); q.exec();
+            q.bindValue(":key", "upregulated"); q.bindValue(":value", QString::number(results.upregulatedGenes)); q.exec();
+            q.bindValue(":key", "downregulated"); q.bindValue(":value", QString::number(results.downregulatedGenes)); q.exec();
+            q.bindValue(":key", "pvalue_threshold"); q.bindValue(":value", QString::number(results.pValueThreshold)); q.exec();
+
+            db.commit();
+            q.clear();
+            db.close();
+        }
+        QSqlDatabase::removeDatabase(connName);
+
+        addProgressMessage("Results saved to: " + outputPath);
     }
 
     void MainWindow::onAnalysisError(const QString &errorMessage)
@@ -1547,43 +1709,77 @@ namespace deseq2
 
     bool MainWindow::exportResultsToCSV(const QString &filePath, const AnalysisResults &results, bool significantOnly)
     {
+        // Export from SQLite if available, otherwise from memory
+        if (!m_resultsSqlitePath.isEmpty() && QFile::exists(m_resultsSqlitePath)) {
+            return exportSqliteToCSV(filePath, significantOnly);
+        }
+
         QFile file(filePath);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
-        {
             return false;
-        }
 
         QTextStream stream(&file);
+        stream << "Gene,baseMean,log2FoldChange,lfcSE,stat,pvalue,padj,enrichment\n";
 
-        // Write header
-        stream << "Gene,baseMean,log2FoldChange,lfcSE,stat,pvalue,padj\n";
-
-        const auto &matrix = results.results;
-        const auto &geneNames = results.geneNames;
-
-        // Write data
-        for (int row = 0; row < matrix.rows(); ++row)
-        {
-            double padj = matrix(row, 5); // Adjusted p-value column (FIXED: was 4, should be 5)
-
-            // Skip non-significant genes if requested
+        for (int row = 0; row < results.results.rows(); ++row) {
+            double padj = results.results(row, 5);
             if (significantOnly && padj >= results.pValueThreshold)
-            {
                 continue;
-            }
 
-            // Gene name
-            stream << QString::fromStdString(geneNames[row]);
+            double lfc = results.results(row, 1);
+            QString enrichment = "ns";
+            if (!std::isnan(padj) && padj < results.pValueThreshold)
+                enrichment = (lfc > 0) ? "enriched" : "depleted";
 
-            // Results columns
-            for (int col = 0; col < matrix.cols(); ++col)
-            {
-                stream << "," << matrix(row, col);
-            }
-            stream << "\n";
+            stream << QString::fromStdString(results.geneNames[row]);
+            for (int col = 0; col < results.results.cols(); ++col)
+                stream << "," << results.results(row, col);
+            stream << "," << enrichment << "\n";
         }
-
         return true;
+    }
+
+    bool MainWindow::exportSqliteToCSV(const QString &csvPath, bool significantOnly)
+    {
+        QString connName = "deseq2_csv_export";
+        bool success = false;
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connName);
+            db.setDatabaseName(m_resultsSqlitePath);
+            if (!db.open()) return false;
+
+            QFile file(csvPath);
+            if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                db.close();
+                return false;
+            }
+
+            QTextStream stream(&file);
+            stream << "Gene,baseMean,log2FoldChange,lfcSE,stat,pvalue,padj,enrichment,enrichment_score,borda_score\n";
+
+            QString query = "SELECT gene, base_mean, log2_fold_change, lfc_se, "
+                           "stat, pvalue, padj, enrichment, enrichment_score, borda_score "
+                           "FROM deseq2_results";
+            if (significantOnly) {
+                query += " WHERE enrichment != 'ns'";
+            }
+            query += " ORDER BY padj ASC";
+
+            QSqlQuery q(db);
+            q.exec(query);
+            while (q.next()) {
+                stream << q.value(0).toString();
+                for (int i = 1; i <= 9; i++)
+                    stream << "," << q.value(i).toString();
+                stream << "\n";
+            }
+
+            q.clear();
+            db.close();
+            success = true;
+        }
+        QSqlDatabase::removeDatabase(connName);
+        return success;
     }
 
     bool MainWindow::exportCountMatrixToCSV(const QString &filePath, const CombinedData &data)
@@ -1650,24 +1846,22 @@ namespace deseq2
         if (!m_plotWidget || !m_analysisResults.isValid)
             return;
 
-        m_plotWidget->clearPlottables();
-        m_plotWidget->clearItems();
-
         const auto &res = m_analysisResults.results;
         double pThresh = m_pValueThresholdSpinBox ? m_pValueThresholdSpinBox->value() : 0.05;
         int ptSize = m_pointSizeSpinBox ? m_pointSizeSpinBox->value() : 5;
+        qreal markerSize = static_cast<qreal>(ptSize);
 
-        QCPGraph *sigGraph = m_plotWidget->addGraph();
-        sigGraph->setLineStyle(QCPGraph::lsNone);
-        sigGraph->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, QColor(220, 50, 50), ptSize));
-        sigGraph->setName("Significant");
+        auto *sigSeries = new QScatterSeries();
+        sigSeries->setName("Significant");
+        sigSeries->setMarkerSize(markerSize);
+        sigSeries->setColor(QColor(220, 50, 50));
+        sigSeries->setBorderColor(QColor(220, 50, 50));
 
-        QCPGraph *nsGraph = m_plotWidget->addGraph();
-        nsGraph->setLineStyle(QCPGraph::lsNone);
-        nsGraph->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, QColor(150, 150, 150), ptSize));
-        nsGraph->setName("Non-significant");
-
-        QVector<double> sigX, sigY, nsX, nsY;
+        auto *nsSeries = new QScatterSeries();
+        nsSeries->setName("Non-significant");
+        nsSeries->setMarkerSize(markerSize);
+        nsSeries->setColor(QColor(150, 150, 150));
+        nsSeries->setBorderColor(QColor(150, 150, 150));
 
         for (int i = 0; i < res.rows(); ++i)
         {
@@ -1675,30 +1869,39 @@ namespace deseq2
             double lfc = res(i, 1);
             double padj = res(i, 5);
 
-            if (baseMean <= 0)
+            if (baseMean <= 0 || !std::isfinite(lfc))
                 continue;
             double x = std::log10(baseMean);
 
             if (padj < pThresh)
-            {
-                sigX.append(x);
-                sigY.append(lfc);
-            }
+                sigSeries->append(x, lfc);
             else
-            {
-                nsX.append(x);
-                nsY.append(lfc);
-            }
+                nsSeries->append(x, lfc);
         }
 
-        sigGraph->setData(sigX, sigY);
-        nsGraph->setData(nsX, nsY);
+        // Build the chart
+        QChart *chart = new QChart();
+        chart->setTitle("MA Plot");
+        chart->addSeries(nsSeries);
+        chart->addSeries(sigSeries);
 
-        m_plotWidget->xAxis->setLabel("log10(baseMean)");
-        m_plotWidget->yAxis->setLabel("log2 Fold Change");
-        m_plotWidget->legend->setVisible(true);
-        m_plotWidget->rescaleAxes();
-        m_plotWidget->replot();
+        auto *axisX = new QValueAxis();
+        axisX->setTitleText("log10(baseMean)");
+        chart->addAxis(axisX, Qt::AlignBottom);
+        nsSeries->attachAxis(axisX);
+        sigSeries->attachAxis(axisX);
+
+        auto *axisY = new QValueAxis();
+        axisY->setTitleText("log2 Fold Change");
+        chart->addAxis(axisY, Qt::AlignLeft);
+        nsSeries->attachAxis(axisY);
+        sigSeries->attachAxis(axisY);
+
+        chart->legend()->setVisible(true);
+        chart->legend()->setAlignment(Qt::AlignBottom);
+
+        // Replace chart on the view (QChartView takes ownership of previous chart)
+        m_plotWidget->setChart(chart);
     }
 
     void MainWindow::plotVolcanoPlot()
@@ -1706,25 +1909,26 @@ namespace deseq2
         if (!m_plotWidget || !m_analysisResults.isValid)
             return;
 
-        m_plotWidget->clearPlottables();
-        m_plotWidget->clearItems();
-
         const auto &res = m_analysisResults.results;
         double pThresh = m_pValueThresholdSpinBox ? m_pValueThresholdSpinBox->value() : 0.05;
         double fcThresh = m_log2FCThresholdSpinBox ? m_log2FCThresholdSpinBox->value() : 1.0;
         int ptSize = m_pointSizeSpinBox ? m_pointSizeSpinBox->value() : 5;
+        qreal markerSize = static_cast<qreal>(ptSize);
 
-        QCPGraph *sigGraph = m_plotWidget->addGraph();
-        sigGraph->setLineStyle(QCPGraph::lsNone);
-        sigGraph->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, QColor(220, 50, 50), ptSize));
-        sigGraph->setName("Significant");
+        auto *sigSeries = new QScatterSeries();
+        sigSeries->setName("Significant");
+        sigSeries->setMarkerSize(markerSize);
+        sigSeries->setColor(QColor(220, 50, 50));
+        sigSeries->setBorderColor(QColor(220, 50, 50));
 
-        QCPGraph *nsGraph = m_plotWidget->addGraph();
-        nsGraph->setLineStyle(QCPGraph::lsNone);
-        nsGraph->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, QColor(150, 150, 150), ptSize));
-        nsGraph->setName("Non-significant");
+        auto *nsSeries = new QScatterSeries();
+        nsSeries->setName("Non-significant");
+        nsSeries->setMarkerSize(markerSize);
+        nsSeries->setColor(QColor(150, 150, 150));
+        nsSeries->setBorderColor(QColor(150, 150, 150));
 
-        QVector<double> sigX, sigY, nsX, nsY;
+        double maxNegLog10P = 0.0;
+        double maxAbsLfc = 0.0;
 
         for (int i = 0; i < res.rows(); ++i)
         {
@@ -1732,49 +1936,80 @@ namespace deseq2
             double pval = res(i, 4);
             double padj = res(i, 5);
 
-            if (pval <= 0 || !std::isfinite(pval))
+            if (pval <= 0 || !std::isfinite(pval) || !std::isfinite(lfc))
                 continue;
             double negLog10P = -std::log10(pval);
 
             if (padj < pThresh && std::abs(lfc) > fcThresh)
-            {
-                sigX.append(lfc);
-                sigY.append(negLog10P);
-            }
+                sigSeries->append(lfc, negLog10P);
             else
-            {
-                nsX.append(lfc);
-                nsY.append(negLog10P);
-            }
+                nsSeries->append(lfc, negLog10P);
+
+            maxNegLog10P = std::max(maxNegLog10P, negLog10P);
+            maxAbsLfc = std::max(maxAbsLfc, std::abs(lfc));
         }
 
-        sigGraph->setData(sigX, sigY);
-        nsGraph->setData(nsX, nsY);
-
-        // Add threshold lines
-        // Horizontal line at -log10(alpha)
+        // Threshold lines: horizontal at -log10(pThresh), vertical at +/- fcThresh
         double hLine = -std::log10(pThresh);
-        QCPItemStraightLine *pLine = new QCPItemStraightLine(m_plotWidget);
-        pLine->point1->setCoords(0, hLine);
-        pLine->point2->setCoords(1, hLine);
-        pLine->setPen(QPen(Qt::darkGray, 1, Qt::DashLine));
 
-        // Vertical lines at +/- FC threshold
-        QCPItemStraightLine *fcLinePos = new QCPItemStraightLine(m_plotWidget);
-        fcLinePos->point1->setCoords(fcThresh, 0);
-        fcLinePos->point2->setCoords(fcThresh, 1);
-        fcLinePos->setPen(QPen(Qt::darkGray, 1, Qt::DashLine));
+        auto *pThreshLine = new QLineSeries();
+        pThreshLine->setName(QString("p = %1").arg(pThresh));
+        pThreshLine->setPen(QPen(Qt::darkGray, 1, Qt::DashLine));
+        pThreshLine->append(-maxAbsLfc * 1.2, hLine);
+        pThreshLine->append(maxAbsLfc * 1.2, hLine);
 
-        QCPItemStraightLine *fcLineNeg = new QCPItemStraightLine(m_plotWidget);
-        fcLineNeg->point1->setCoords(-fcThresh, 0);
-        fcLineNeg->point2->setCoords(-fcThresh, 1);
-        fcLineNeg->setPen(QPen(Qt::darkGray, 1, Qt::DashLine));
+        auto *fcPosLine = new QLineSeries();
+        fcPosLine->setName(QString("log2FC = %1").arg(fcThresh));
+        fcPosLine->setPen(QPen(Qt::darkGray, 1, Qt::DashLine));
+        fcPosLine->append(fcThresh, 0);
+        fcPosLine->append(fcThresh, maxNegLog10P * 1.1);
 
-        m_plotWidget->xAxis->setLabel("log2 Fold Change");
-        m_plotWidget->yAxis->setLabel("-log10(p-value)");
-        m_plotWidget->legend->setVisible(true);
-        m_plotWidget->rescaleAxes();
-        m_plotWidget->replot();
+        auto *fcNegLine = new QLineSeries();
+        fcNegLine->setName(QString("log2FC = -%1").arg(fcThresh));
+        fcNegLine->setPen(QPen(Qt::darkGray, 1, Qt::DashLine));
+        fcNegLine->append(-fcThresh, 0);
+        fcNegLine->append(-fcThresh, maxNegLog10P * 1.1);
+
+        // Build the chart
+        QChart *chart = new QChart();
+        chart->setTitle("Volcano Plot");
+        chart->addSeries(nsSeries);
+        chart->addSeries(sigSeries);
+        chart->addSeries(pThreshLine);
+        chart->addSeries(fcPosLine);
+        chart->addSeries(fcNegLine);
+
+        auto *axisX = new QValueAxis();
+        axisX->setTitleText("log2 Fold Change");
+        chart->addAxis(axisX, Qt::AlignBottom);
+        nsSeries->attachAxis(axisX);
+        sigSeries->attachAxis(axisX);
+        pThreshLine->attachAxis(axisX);
+        fcPosLine->attachAxis(axisX);
+        fcNegLine->attachAxis(axisX);
+
+        auto *axisY = new QValueAxis();
+        axisY->setTitleText("-log10(p-value)");
+        chart->addAxis(axisY, Qt::AlignLeft);
+        nsSeries->attachAxis(axisY);
+        sigSeries->attachAxis(axisY);
+        pThreshLine->attachAxis(axisY);
+        fcPosLine->attachAxis(axisY);
+        fcNegLine->attachAxis(axisY);
+
+        chart->legend()->setVisible(true);
+        chart->legend()->setAlignment(Qt::AlignBottom);
+
+        // Hide threshold line legend markers (keep only Significant/Non-significant visible)
+        for (auto *marker : chart->legend()->markers())
+        {
+            if (marker->series() == pThreshLine ||
+                marker->series() == fcPosLine ||
+                marker->series() == fcNegLine)
+                marker->setVisible(false);
+        }
+
+        m_plotWidget->setChart(chart);
     }
 
     void MainWindow::plotDispersionPlot()
@@ -1782,13 +2017,11 @@ namespace deseq2
         if (!m_plotWidget || !m_analysisResults.isValid)
             return;
 
-        m_plotWidget->clearPlottables();
-        m_plotWidget->clearItems();
-
         const auto &baseMeans = m_analysisResults.baseMeans;
         const auto &genewise = m_analysisResults.genewiseDispersions;
         const auto &fitted = m_analysisResults.fittedDispersions;
         int ptSize = m_pointSizeSpinBox ? m_pointSizeSpinBox->value() : 5;
+        qreal markerSize = static_cast<qreal>(ptSize);
 
         bool hasData = baseMeans.size() > 0 && genewise.size() > 0 && fitted.size() > 0;
         if (!hasData)
@@ -1798,30 +2031,21 @@ namespace deseq2
         }
 
         // Genewise dispersions scatter
-        QCPGraph *geneGraph = m_plotWidget->addGraph();
-        geneGraph->setLineStyle(QCPGraph::lsNone);
-        geneGraph->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, QColor(70, 130, 220), ptSize));
-        geneGraph->setName("Genewise");
+        auto *geneSeries = new QScatterSeries();
+        geneSeries->setName("Genewise");
+        geneSeries->setMarkerSize(markerSize);
+        geneSeries->setColor(QColor(70, 130, 220));
+        geneSeries->setBorderColor(QColor(70, 130, 220));
 
-        QVector<double> gX, gY;
         for (int i = 0; i < baseMeans.size(); ++i)
         {
             if (baseMeans(i) > 0 && genewise(i) > 0)
             {
-                gX.append(std::log10(baseMeans(i)));
-                gY.append(std::log10(genewise(i)));
+                geneSeries->append(std::log10(baseMeans(i)), std::log10(genewise(i)));
             }
         }
-        geneGraph->setData(gX, gY);
 
         // Fitted trend line (sorted by x for connected line)
-        QCPGraph *fitGraph = m_plotWidget->addGraph();
-        fitGraph->setLineStyle(QCPGraph::lsLine);
-        fitGraph->setPen(QPen(QColor(220, 50, 50), 2));
-        fitGraph->setScatterStyle(QCPScatterStyle::ssNone);
-        fitGraph->setName("Fitted trend");
-
-        // Collect valid fitted points and sort by mean
         std::vector<std::pair<double, double>> fitPoints;
         for (int i = 0; i < baseMeans.size(); ++i)
         {
@@ -1832,24 +2056,42 @@ namespace deseq2
         }
         std::sort(fitPoints.begin(), fitPoints.end());
 
-        QVector<double> fX, fY;
+        auto *fitSeries = new QLineSeries();
+        fitSeries->setName("Fitted trend");
+        fitSeries->setPen(QPen(QColor(220, 50, 50), 2));
+
         for (const auto &pt : fitPoints)
         {
-            fX.append(pt.first);
-            fY.append(pt.second);
+            fitSeries->append(pt.first, pt.second);
         }
-        fitGraph->setData(fX, fY);
 
-        m_plotWidget->xAxis->setLabel("log10(baseMean)");
-        m_plotWidget->yAxis->setLabel("log10(dispersion)");
-        m_plotWidget->legend->setVisible(true);
-        m_plotWidget->rescaleAxes();
-        m_plotWidget->replot();
+        // Build the chart
+        QChart *chart = new QChart();
+        chart->setTitle("Dispersion Plot");
+        chart->addSeries(geneSeries);
+        chart->addSeries(fitSeries);
+
+        auto *axisX = new QValueAxis();
+        axisX->setTitleText("log10(baseMean)");
+        chart->addAxis(axisX, Qt::AlignBottom);
+        geneSeries->attachAxis(axisX);
+        fitSeries->attachAxis(axisX);
+
+        auto *axisY = new QValueAxis();
+        axisY->setTitleText("log10(dispersion)");
+        chart->addAxis(axisY, Qt::AlignLeft);
+        geneSeries->attachAxis(axisY);
+        fitSeries->attachAxis(axisY);
+
+        chart->legend()->setVisible(true);
+        chart->legend()->setAlignment(Qt::AlignBottom);
+
+        m_plotWidget->setChart(chart);
     }
 
     void MainWindow::onSavePlot()
     {
-        if (!m_plotWidget)
+        if (!m_plotWidget || !m_plotWidget->chart())
             return;
 
         QString fileName = QFileDialog::getSaveFileName(
@@ -1865,11 +2107,20 @@ namespace deseq2
             bool ok = false;
             if (fileName.endsWith(".pdf", Qt::CaseInsensitive))
             {
-                ok = m_plotWidget->savePdf(fileName);
+                QPrinter printer(QPrinter::HighResolution);
+                printer.setOutputFormat(QPrinter::PdfFormat);
+                printer.setOutputFileName(fileName);
+                QPainter painter(&printer);
+                m_plotWidget->render(&painter);
+                painter.end();
+                ok = true;
             }
             else
             {
-                ok = m_plotWidget->savePng(fileName, 0, 0, 2.0);
+                // Render at 2x resolution for high-DPI output
+                QPixmap pixmap = m_plotWidget->grab();
+                QPixmap scaled = pixmap.scaled(pixmap.size() * 2, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                ok = scaled.save(fileName, "PNG");
             }
 
             if (ok)
@@ -1905,19 +2156,19 @@ namespace deseq2
 
     void MainWindow::onPrintPlot()
     {
-        if (!m_plotWidget)
+        if (!m_plotWidget || !m_plotWidget->chart())
             return;
 
         // Save to a temp PDF and inform the user
         QString tempPath = QDir::tempPath() + "/deseq2_plot.pdf";
-        if (m_plotWidget->savePdf(tempPath))
-        {
-            addProgressMessage("Plot saved to temporary PDF: " + tempPath);
-        }
-        else
-        {
-            addProgressMessage("Failed to generate print PDF.");
-        }
+        QPrinter printer(QPrinter::HighResolution);
+        printer.setOutputFormat(QPrinter::PdfFormat);
+        printer.setOutputFileName(tempPath);
+        QPainter painter(&printer);
+        m_plotWidget->render(&painter);
+        painter.end();
+
+        addProgressMessage("Plot saved to temporary PDF: " + tempPath);
     }
 
     // Slot implementations - Progress output
@@ -2035,7 +2286,7 @@ namespace deseq2
         QMessageBox::about(static_cast<QWidget *>(this), "About DESeq2 GUI",
                            "DESeq2 Differential Expression Analysis GUI\n\n"
                            "Version 1.0.0\n"
-                           "A Qt5-based interface for DESeq2 analysis.");
+                           "A Qt6-based interface for DESeq2 analysis.");
     }
 
     void MainWindow::onUserGuide()
@@ -2051,8 +2302,8 @@ namespace deseq2
             return;
         }
 
-        const int maxRows = std::min(20, data.geneNames.size());
-        const int maxCols = std::min(10, data.sampleNames.size());
+        const int maxRows = std::min(20, static_cast<int>(data.geneNames.size()));
+        const int maxCols = std::min(10, static_cast<int>(data.sampleNames.size()));
 
         table->clear();
         table->setRowCount(maxRows);
@@ -2082,6 +2333,88 @@ namespace deseq2
         }
 
         table->resizeColumnsToContents();
+    }
+
+    // =========================================================================
+    // Results table context menu slots
+    // =========================================================================
+
+    void MainWindow::onResultsContextMenu(const QPoint &pos)
+    {
+        QTableWidgetItem *item = m_resultsTable->itemAt(pos);
+        if (!item)
+            return;
+
+        QMenu menu(this);
+        menu.addAction("Open in MultiQuery++", this, &MainWindow::onOpenInMultiQuery);
+        menu.addAction("Open in ReadDepth++", this, &MainWindow::onOpenInReadDepth);
+        menu.addSeparator();
+        menu.addAction("Copy Gene Name", this, &MainWindow::onCopyGeneName);
+        menu.exec(m_resultsTable->viewport()->mapToGlobal(pos));
+    }
+
+    void MainWindow::onOpenInMultiQuery()
+    {
+        int row = m_resultsTable->currentRow();
+        if (row < 0 || !m_resultsTable->item(row, 0))
+            return;
+
+        QString geneName = m_resultsTable->item(row, 0)->text();
+
+        // Resolve path relative to the bundled app location:
+        // StatMaker++.app/Contents/MacOS (applicationDirPath)
+        //   -> cdUp -> Contents
+        //   -> cdUp -> StatMaker++.app (which lives in DEEPN++.app/Contents/Resources/)
+        // Sibling app: MultiQuery++.app/Contents/MacOS/MultiQuery++
+        QDir appDir(QCoreApplication::applicationDirPath());
+        appDir.cdUp(); // Contents
+        appDir.cdUp(); // StatMaker++.app -> now in DEEPN++.app/Contents/Resources/
+        QString multiQueryPath = appDir.absoluteFilePath(
+            "MultiQuery++.app/Contents/MacOS/MultiQuery++");
+
+        if (!QFile::exists(multiQueryPath))
+        {
+            QMessageBox::warning(this, "Application Not Found",
+                                 "Could not find MultiQuery++ at:\n" + multiQueryPath);
+            return;
+        }
+
+        QProcess::startDetached(multiQueryPath, QStringList() << geneName);
+    }
+
+    void MainWindow::onOpenInReadDepth()
+    {
+        int row = m_resultsTable->currentRow();
+        if (row < 0 || !m_resultsTable->item(row, 0))
+            return;
+
+        QString geneName = m_resultsTable->item(row, 0)->text();
+
+        // Same path resolution as MultiQuery++
+        QDir appDir(QCoreApplication::applicationDirPath());
+        appDir.cdUp(); // Contents
+        appDir.cdUp(); // StatMaker++.app -> now in DEEPN++.app/Contents/Resources/
+        QString readDepthPath = appDir.absoluteFilePath(
+            "ReadDepth++.app/Contents/MacOS/ReadDepth++");
+
+        if (!QFile::exists(readDepthPath))
+        {
+            QMessageBox::warning(this, "Application Not Found",
+                                 "Could not find ReadDepth++ at:\n" + readDepthPath);
+            return;
+        }
+
+        QProcess::startDetached(readDepthPath, QStringList() << geneName);
+    }
+
+    void MainWindow::onCopyGeneName()
+    {
+        int row = m_resultsTable->currentRow();
+        if (row >= 0 && m_resultsTable->item(row, 0))
+        {
+            QString geneName = m_resultsTable->item(row, 0)->text();
+            QApplication::clipboard()->setText(geneName);
+        }
     }
 
 } // namespace deseq2

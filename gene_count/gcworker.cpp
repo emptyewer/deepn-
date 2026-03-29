@@ -16,26 +16,87 @@ GCWorker::GCWorker(GCStat *gcstat) {
   QString basename = fileInfo.completeBaseName();
   mappedOuputDBName =
       fileInfo.absolutePath() + "/../analyzed_files/" + basename + ".sqlite";
+  // Unique connection names so multiple workers don't collide
+  QString uid = QUuid::createUuid().toString(QUuid::Id128);
+  writeDbConn = "writeDB_" + uid;
+  fileDbConn = "fileDb_" + uid;
+  memDbConn = "memoryDb_" + uid;
   qDebug() << mappedOuputDBName;
-  setupDB();
 }
 
 void GCWorker::run() {
+  setupDB();
   readMapOutput();
   createInMemoryDB();
   writeGeneCount();
+  emit sig->gc_finished_sig();
+  emit finished();
 }
 
-void GCWorker::writeGeneCount() { qDebug() << "Writing Gene Count"; }
+void GCWorker::writeGeneCount() {
+  qDebug() << "Writing Gene Count";
+  QSqlQuery q(mem_db);
+
+  // Totals from the maps table
+  q.exec("SELECT COUNT(DISTINCT read) FROM maps");
+  int totalReads = q.next() ? q.value(0).toInt() : 0;
+  q.exec("SELECT COUNT(*) FROM maps");
+  int totalHits = q.next() ? q.value(0).toInt() : 0;
+  q.clear();
+
+  // Detach the previously attached fileDb if still attached
+  QSqlQuery detachQ(mem_db);
+  detachQ.exec("DETACH DATABASE IF EXISTS fileDb");
+  detachQ.clear();
+
+  // Attach the output file from the in-memory DB and write directly
+  QSqlQuery w(mem_db);
+  if (!w.exec(QString("ATTACH DATABASE '%1' AS outFile").arg(mappedOuputDBName))) {
+    qDebug() << "Error attaching output database:" << w.lastError().text();
+    return;
+  }
+
+  w.exec("DROP TABLE IF EXISTS outFile.gene_counts");
+  w.exec("DROP TABLE IF EXISTS outFile.summary");
+
+  // Gene counts: aggregate distinct reads per gene with PPM
+  w.exec("CREATE TABLE outFile.gene_counts ("
+         "gene TEXT PRIMARY KEY, count INTEGER, ppm REAL)");
+  w.exec(QString(
+      "INSERT INTO outFile.gene_counts (gene, count, ppm) "
+      "SELECT gene, COUNT(DISTINCT read), "
+      "COUNT(DISTINCT read) * 1000000.0 / %1 "
+      "FROM maps GROUP BY gene ORDER BY COUNT(DISTINCT read) DESC")
+      .arg(qMax(totalReads, 1)));
+
+  // Summary metadata
+  w.exec("CREATE TABLE outFile.summary (key TEXT PRIMARY KEY, value TEXT)");
+  QFileInfo fileInfo(stat->input);
+  w.exec(QString("INSERT INTO outFile.summary VALUES ('file', '%1')")
+      .arg(fileInfo.fileName()));
+  w.exec(QString("INSERT INTO outFile.summary VALUES ('total_reads', '%1')")
+      .arg(totalReads));
+  w.exec(QString("INSERT INTO outFile.summary VALUES ('total_hits', '%1')")
+      .arg(totalHits));
+
+  w.exec("DETACH DATABASE outFile");
+  w.clear();
+
+  // Clean up memory DB
+  mem_db.close();
+  QSqlDatabase::removeDatabase(memDbConn);
+
+  qDebug() << "Gene counts written to:" << mappedOuputDBName;
+}
 
 void GCWorker::createInMemoryDB() {
-  QSqlDatabase fileDb = QSqlDatabase::addDatabase("QSQLITE", "fileDb");
+  QSqlDatabase fileDb = QSqlDatabase::addDatabase("QSQLITE", fileDbConn);
   fileDb.setDatabaseName(mappedOuputDBName);
   if (!fileDb.open()) {
     qDebug() << "Error opening file-based database:"
              << fileDb.lastError().text();
   }
-  mem_db = QSqlDatabase::addDatabase("QSQLITE", "memoryDb");
+  mem_db = QSqlDatabase::addDatabase("QSQLITE", memDbConn);
   mem_db.setDatabaseName(":memory:");
   if (!mem_db.open()) {
     qDebug() << "Error opening in-memory database:"
@@ -75,8 +136,10 @@ void GCWorker::createInMemoryDB() {
   mem_db.commit();
   // Close the file-based database connection
   fileQuery.clear();
+  attachQuery.clear();
   fileDb.close();
-  QSqlDatabase::removeDatabase("fileDb");
+  fileDb = QSqlDatabase();
+  QSqlDatabase::removeDatabase(fileDbConn);
 
   //  // Now you can query the in-memory database (memoryDb) for faster
   //  performance
@@ -145,22 +208,31 @@ void GCWorker::readMapOutput() {
   query.clear();
   db.commit();
   db.close();
-  QSqlDatabase::removeDatabase("writeDB");
+  db = QSqlDatabase();
+  QSqlDatabase::removeDatabase(writeDbConn);
   emit sig->gc_update_progress_sig();
 }
 
 void GCWorker::setupDB() {
-  db = QSqlDatabase::addDatabase("QSQLITE", "writeDB");
-  db.setDatabaseName(mappedOuputDBName);
+  // Ensure output directory exists
   QFileInfo dbInfo(mappedOuputDBName);
-  if (!dbInfo.exists()) {
+  QDir().mkpath(dbInfo.absolutePath());
+
+  db = QSqlDatabase::addDatabase("QSQLITE", writeDbConn);
+  db.setDatabaseName(mappedOuputDBName);
+  if (!db.open()) {
+    qDebug() << "Error opening database:" << db.lastError().text();
     return;
   }
-  if (!db.open()) {
-    qDebug() << "Error opening database";
-  }
   query = QSqlQuery(db);
+  // Create tables (or clear existing)
+  query.exec("CREATE TABLE IF NOT EXISTS maps ("
+             "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+             "read TEXT, gene TEXT, qstart INTEGER, qend INTEGER, "
+             "refseq TEXT, frame TEXT, location TEXT)");
   query.exec("DELETE FROM maps");
+  query.prepare("INSERT INTO maps (read, gene, qstart, qend, refseq, frame, location) "
+                "VALUES (:read, :gene, :qstart, :qend, :refseq, :frame, :location)");
   db.transaction();
 }
 

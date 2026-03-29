@@ -1,0 +1,42 @@
+{
+    "version": 6,
+    "configurePresets": [
+        {
+            "name": "debug",
+            "displayName": "Debug (Qt 6.11 Debug)",
+            "binaryDir": "${sourceDir}/build-debug",
+            "cacheVariables": {
+                "CMAKE_PREFIX_PATH": "/Volumes/Projects/qt6.11-debug",
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release (Qt 6.11 Static)",
+            "binaryDir": "${sourceDir}/build-release",
+            "cacheVariables": {
+                "CMAKE_PREFIX_PATH": "/Volumes/Projects/qt6.11-release",
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "default",
+            "displayName": "Default",
+            "inherits": "debug"
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug"
+        },
+        {
+            "name": "release",
+            "configurePreset": "release"
+        },
+        {
+            "name": "default",
+            "configurePreset": "default"
+        }
+    ]
+}

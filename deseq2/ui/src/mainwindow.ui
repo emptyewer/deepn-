@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>DESeq2 Differential Expression Analysis</string>
+   <string>StatMaker++ — Y2H Statistical Analysis</string>
   </property>
   <property name="windowIcon">
    <iconset>
@@ -157,6 +157,68 @@
          </widget>
         </item>
         <item>
+         <widget class="QGroupBox" name="analysisSettingsGroup">
+          <property name="title">
+           <string>Analysis Settings</string>
+          </property>
+          <layout class="QVBoxLayout" name="analysisSettingsLayout">
+           <item>
+            <layout class="QHBoxLayout" name="modeLayout">
+             <item>
+              <widget class="QLabel" name="analysisModeLabel">
+               <property name="text">
+                <string>Analysis Mode:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="analysisModeCombo">
+               <item>
+                <property name="text">
+                 <string>DESeq2 (Two-way comparison)</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>DESeq2 (Three-way comparison)</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Y2H-SCORES (Full pipeline)</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="ppmThresholdLabel">
+               <property name="text">
+                <string>PPM Threshold:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="ppmThresholdSpinBox">
+               <property name="minimum">
+                <double>0.000000000000000</double>
+               </property>
+               <property name="maximum">
+                <double>100.000000000000000</double>
+               </property>
+               <property name="value">
+                <double>3.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.500000000000000</double>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
          <widget class="QGroupBox" name="groupAssignmentGroup">
           <property name="title">
            <string>Group Assignment</string>
@@ -170,9 +232,48 @@
             </widget>
            </item>
            <item>
+            <widget class="QComboBox" name="groupTypeCombo">
+             <item>
+              <property name="text">
+               <string>Vector Control</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Bait</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Selected</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Non-Selected</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Control</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Treatment</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Custom...</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item>
             <widget class="QLineEdit" name="groupNameEdit">
              <property name="placeholderText">
-              <string>Enter group name (e.g., Selection, Non-Selection)</string>
+              <string>Custom group name</string>
              </property>
             </widget>
            </item>

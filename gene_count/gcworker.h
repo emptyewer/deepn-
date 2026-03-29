@@ -19,6 +19,9 @@ class GCWorker : public QObject {
  public slots:
   void run();
 
+ signals:
+  void finished();
+
  private:
   QElapsedTimer elapsedTimer;
   QSqlDatabase db;
@@ -27,6 +30,9 @@ class GCWorker : public QObject {
   Signals *sig = Signals::getCommonInstance();
   GCStat *stat;
   QString mappedOuputDBName;
+  QString writeDbConn;
+  QString fileDbConn;
+  QString memDbConn;
   void setupDB();
   void writeToDatabase(QList<ReadHits> *collectedReads);
   void readMapOutput();

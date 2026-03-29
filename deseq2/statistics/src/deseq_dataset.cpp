@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <set>
 
 namespace deseq2
 {
@@ -40,10 +41,9 @@ namespace deseq2
         map_dispersions_ = Eigen::VectorXd::Zero(n_genes);
         dispersions_ = Eigen::VectorXd::Zero(n_genes);
         trend_coeffs_ = Eigen::Vector2d::Zero();
-        lfc_ = Eigen::MatrixXd::Zero(n_genes, 2); // intercept + condition
         cooks_ = Eigen::MatrixXd::Zero(n_samples, n_genes);
 
-        // Build design matrix
+        // Build design matrix (also initializes lfc_)
         buildDesignMatrix();
     }
 
@@ -51,23 +51,43 @@ namespace deseq2
     {
         int n_samples = counts_.rows();
 
-        // Simple design matrix for condition A vs B
-        // First column: intercept (all 1s)
-        // Second column: condition (0 for A, 1 for B)
-        design_matrix_ = Eigen::MatrixXd::Ones(n_samples, 2);
+        // Determine number of groups from metadata (first column)
+        std::set<int> groups;
+        for (int i = 0; i < n_samples; i++) {
+            groups.insert(static_cast<int>(std::round(metadata_(i, 0))));
+        }
+        int n_groups = groups.size();
 
-        // Extract condition from metadata (assuming condition is in first column)
-        for (int i = 0; i < n_samples; ++i)
-        {
-            if (metadata_(i, 0) > 0.5)
-            { // Assuming B is encoded as 1
-                design_matrix_(i, 1) = 1.0;
+        if (n_groups <= 2) {
+            // Two-group: intercept + condition (0/1)
+            design_matrix_ = Eigen::MatrixXd::Ones(n_samples, 2);
+            for (int i = 0; i < n_samples; i++) {
+                design_matrix_(i, 1) = (metadata_(i, 0) > 0.5) ? 1.0 : 0.0;
             }
-            else
-            {
-                design_matrix_(i, 1) = 0.0;
+        } else {
+            // Multi-group: intercept + (n_groups - 1) dummy variables
+            // Reference group = 0 (first group)
+            int n_coeffs = n_groups; // intercept + (n_groups - 1) contrasts
+            design_matrix_ = Eigen::MatrixXd::Zero(n_samples, n_coeffs);
+            design_matrix_.col(0).setOnes(); // intercept
+
+            // Dummy coding: each non-reference group gets a column
+            std::vector<int> group_list(groups.begin(), groups.end());
+            std::sort(group_list.begin(), group_list.end());
+
+            for (int i = 0; i < n_samples; i++) {
+                int g = static_cast<int>(std::round(metadata_(i, 0)));
+                for (int k = 1; k < n_groups; k++) {
+                    if (g == group_list[k]) {
+                        design_matrix_(i, k) = 1.0;
+                    }
+                }
             }
         }
+
+        // Resize LFC matrix to match design matrix columns
+        int n_genes = counts_.cols();
+        lfc_ = Eigen::MatrixXd::Zero(n_genes, design_matrix_.cols());
     }
 
     void DeseqDataSet::fitSizeFactors()

@@ -6,8 +6,10 @@
 #include <QHeaderView>
 #include <QDebug>
 #include <QRegularExpression>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
 #include <algorithm>
-#include "xlsxdocument.h"
 
 namespace deseq2
 {
@@ -101,6 +103,23 @@ namespace deseq2
 
     GeneCountData GeneCountHandler::parseGeneCountXlsxFile(const QString &filePath)
     {
+        // DEPRECATED: XLSX support removed (QXlsx dependency eliminated).
+        // Use parseGeneCountSqliteFile() for GeneCount++ output instead.
+        GeneCountData data;
+        data.fileName = QFileInfo(filePath).fileName();
+        data.sampleName = extractSampleName(data.fileName);
+        data.isValid = false;
+        data.totalReads = 0;
+        data.totalHits = 0;
+        data.errorMessage = QString("XLSX format is no longer supported. "
+                                    "Please use the SQLite (.db) output from GeneCount++ instead: %1")
+                                .arg(filePath);
+        qWarning() << data.errorMessage;
+        return data;
+    }
+
+    GeneCountData GeneCountHandler::parseGeneCountSqliteFile(const QString &filePath)
+    {
         GeneCountData data;
         data.fileName = QFileInfo(filePath).fileName();
         data.sampleName = extractSampleName(data.fileName);
@@ -108,49 +127,81 @@ namespace deseq2
         data.totalReads = 0;
         data.totalHits = 0;
 
-        QXlsx::Document doc(filePath);
-        if (!doc.load())
+        // Use a unique connection name per file to allow concurrent opens
+        QString connectionName = QString("genecount_%1").arg(filePath);
+
         {
-            data.errorMessage = QString("Cannot open XLSX file: %1").arg(filePath);
-            return data;
+            QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connectionName);
+            db.setDatabaseName(filePath);
+
+            if (!db.open())
+            {
+                data.errorMessage = QString("Cannot open SQLite database: %1 (%2)")
+                                        .arg(filePath, db.lastError().text());
+                QSqlDatabase::removeDatabase(connectionName);
+                return data;
+            }
+
+            // Read summary table for metadata
+            QSqlQuery summaryQuery(db);
+            if (summaryQuery.exec("SELECT key, value FROM summary"))
+            {
+                while (summaryQuery.next())
+                {
+                    QString key = summaryQuery.value(0).toString();
+                    QString value = summaryQuery.value(1).toString();
+
+                    if (key == "total_reads")
+                        data.totalReads = value.toInt();
+                    else if (key == "total_hits")
+                        data.totalHits = value.toInt();
+                }
+            }
+            else
+            {
+                qDebug() << "No summary table or query failed:" << summaryQuery.lastError().text();
+                // Not fatal -- we can still read gene counts
+            }
+
+            // Read gene_counts table
+            QSqlQuery geneQuery(db);
+            if (!geneQuery.exec("SELECT gene, count, ppm FROM gene_counts"))
+            {
+                data.errorMessage = QString("Failed to query gene_counts table: %1")
+                                        .arg(geneQuery.lastError().text());
+                db.close();
+                QSqlDatabase::removeDatabase(connectionName);
+                return data;
+            }
+
+            int totalCounts = 0;
+            while (geneQuery.next())
+            {
+                QString geneName = geneQuery.value(0).toString().trimmed();
+                int rawCount = geneQuery.value(1).toInt();
+                double ppm = geneQuery.value(2).toDouble();
+
+                if (geneName.isEmpty())
+                    continue;
+
+                data.geneRawCounts[geneName] = rawCount;
+                data.geneCounts[geneName] = ppm;
+                totalCounts += rawCount;
+            }
+
+            // If totalReads was not in summary, estimate from sum of counts
+            if (data.totalReads == 0)
+                data.totalReads = totalCounts;
+
+            db.close();
         }
 
-        // GeneCount++ xlsx format: Row 1 = header (Gene, Count, PPM, Unique RefSeqs)
-        // Data starts at row 2
-        auto range = doc.dimension();
-        int lastRow = range.lastRow();
+        // Remove the connection outside the scope where QSqlDatabase was in use
+        QSqlDatabase::removeDatabase(connectionName);
 
-        if (lastRow < 2)
+        if (data.geneCounts.isEmpty())
         {
-            data.errorMessage = "XLSX file has no data rows";
-            return data;
-        }
-
-        int totalCounts = 0;
-        for (int row = 2; row <= lastRow; ++row)
-        {
-            QVariant geneVar = doc.read(row, 1);
-            QVariant countVar = doc.read(row, 2);
-            QVariant ppmVar = doc.read(row, 3);
-
-            if (!geneVar.isValid() || geneVar.toString().trimmed().isEmpty())
-                continue;
-
-            QString geneName = geneVar.toString().trimmed();
-            int rawCount = countVar.toInt();
-            double ppm = ppmVar.toDouble();
-
-            data.geneRawCounts[geneName] = rawCount;
-            data.geneCounts[geneName] = ppm;
-            totalCounts += rawCount;
-        }
-
-        // Estimate totalReads from sum of counts (approximation)
-        data.totalReads = totalCounts;
-
-        if (data.geneRawCounts.isEmpty())
-        {
-            data.errorMessage = "No gene data found in XLSX file";
+            data.errorMessage = "No gene data found in SQLite database";
             return data;
         }
 
@@ -162,9 +213,14 @@ namespace deseq2
     {
         // Detect file type and parse accordingly
         GeneCountData data;
-        if (filePath.endsWith(".xlsx", Qt::CaseInsensitive))
+        if (filePath.endsWith(".db", Qt::CaseInsensitive) ||
+            filePath.endsWith(".sqlite", Qt::CaseInsensitive))
         {
-            data = parseGeneCountXlsxFile(filePath);
+            data = parseGeneCountSqliteFile(filePath);
+        }
+        else if (filePath.endsWith(".xlsx", Qt::CaseInsensitive))
+        {
+            data = parseGeneCountXlsxFile(filePath); // Returns invalid -- xlsx no longer supported
         }
         else
         {
@@ -442,8 +498,8 @@ namespace deseq2
             return;
         }
 
-        const int maxRows = std::min(20, data.geneNames.size());
-        const int maxCols = std::min(10, data.sampleNames.size());
+        const int maxRows = std::min(20, static_cast<int>(data.geneNames.size()));
+        const int maxCols = std::min(10, static_cast<int>(data.sampleNames.size()));
 
         tableWidget->clear();
         tableWidget->setRowCount(maxRows);

@@ -23,7 +23,7 @@ class MainWindow : public QMainWindow {
  signals:
 
  private slots:
-  void on_debug_btn_clicked();
+  void on_start_btn_clicked();
   void geneCountFinished();
   void updateGeneCountProgress();
 
@@ -33,6 +33,7 @@ class MainWindow : public QMainWindow {
   Signals *sig = Signals::getCommonInstance();
   QMap<QString, GCStat> statistics = {};
   QStringList files = {};
+  int activeWorkers = 0;
   QString appendPath(const QString &path1, const QString &path2);
   void setupSlots();
   void launchGeneCount(QString file);

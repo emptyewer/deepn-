@@ -14,12 +14,12 @@
 #include "ui_mainwindow.h"
 
 QMap<QString, QStringList> SUBDIR_FILES = {
-    {"fastq", {"*.fastq.gz"}},
+    {"fastq", {"*.fastq.gz", "*.fastq"}},
     {"junction_diced_fasta", {"*.jdice.fasta"}},
     {"gene_count_summary", {"*.csv"}},
     {"query_files", {"*.bq"}},
     {"mapped_files", {"*.megablast.txt", "*.blat.txt", "*.blastn.txt"}},
-    {"analyzed_files", {"*.rd"}}};
+    {"analyzed_files", {"*.sqlite"}}};
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent), ui(new Ui::MainWindow) {
@@ -73,6 +73,12 @@ void MainWindow::gatherFilesToggleButtons() {
     ui->read_depth_btn->setEnabled(true);
   } else {
     ui->read_depth_btn->setEnabled(false);
+  }
+
+  if (files["analyzed_files"].length() >= 2) {
+    ui->deseq2_btn->setEnabled(true);
+  } else {
+    ui->deseq2_btn->setEnabled(false);
   }
 }
 
@@ -187,6 +193,7 @@ void MainWindow::on_gene_count_btn_clicked() {
   ui->status_text->appendPlainText(gene_count_path);
   QStringList arguments;
   arguments << files["mapped_files"];
+  process.setProcessChannelMode(QProcess::ForwardedChannels);
   process.start(QDir::toNativeSeparators(gene_count_path), arguments);
   process.waitForFinished(-1);
 }
@@ -229,6 +236,7 @@ void MainWindow::on_junction_dice_btn_clicked() {
   arguments << files["fastq"] << ui->junction_sequence_txt->text()
             << ui->database_path->text();
   qDebug() << arguments;
+  process.setProcessChannelMode(QProcess::ForwardedChannels);
   process.start(QDir::toNativeSeparators(junction_dice_path), arguments);
   process.waitForFinished(-1);
 }
@@ -257,5 +265,30 @@ void MainWindow::on_junction_dice_btn_clicked() {
 //   2"; process.start(QDir::toNativeSeparators(junction_make_path),
 //   arguments); process.waitForFinished(-1);
 // }
+
+void MainWindow::on_deseq2_btn_clicked() {
+  QDir application_directory = QDir(QCoreApplication::applicationDirPath());
+  QString deseq2_path;
+  if (QSysInfo::productType() == "osx" || QSysInfo::productType() == "macos") {
+    application_directory.cdUp();
+    application_directory.cdUp();
+    deseq2_path = appendPath(
+        application_directory.path(),
+        "Contents/Resources/StatMaker++.app/Contents/MacOS/StatMaker++");
+  } else if (QSysInfo::productType() == "windows" ||
+             QSysInfo::productType() == "winrt") {
+    deseq2_path =
+        appendPath(application_directory.path(), "deseq2/StatMaker++.exe");
+  } else {
+    deseq2_path =
+        appendPath(application_directory.path(), "deseq2/StatMaker++");
+  }
+  ui->status_text->appendPlainText(deseq2_path);
+  QStringList arguments;
+  arguments << files["analyzed_files"];
+  process.setProcessChannelMode(QProcess::ForwardedChannels);
+  process.start(QDir::toNativeSeparators(deseq2_path), arguments);
+  process.waitForFinished(-1);
+}
 
 void MainWindow::on_actionDB_Path_triggered() {}

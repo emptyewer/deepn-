@@ -26,6 +26,7 @@ set(STATISTICS_SOURCES
     src/deseq_dataset.cpp
     src/deseq_stats.cpp
     src/utils.cpp
+    src/y2h_scores.cpp
 )
 
 # Create static library
@@ -35,7 +36,7 @@ add_library(deseq2_statistics STATIC ${STATISTICS_SOURCES})
 set_target_properties(deseq2_statistics PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
-    PUBLIC_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/include/deseq_dataset.h;${CMAKE_CURRENT_SOURCE_DIR}/include/deseq_stats.h;${CMAKE_CURRENT_SOURCE_DIR}/include/utils.h"
+    PUBLIC_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/include/deseq_dataset.h;${CMAKE_CURRENT_SOURCE_DIR}/include/deseq_stats.h;${CMAKE_CURRENT_SOURCE_DIR}/include/utils.h;${CMAKE_CURRENT_SOURCE_DIR}/include/y2h_scores.h"
     POSITION_INDEPENDENT_CODE ON
 )
 
@@ -61,8 +62,11 @@ target_link_libraries(test_ppm_conversion deseq2_statistics)
 add_executable(example_ppm_deseq2_analysis tests/example_ppm_deseq2_analysis.cpp)
 target_link_libraries(example_ppm_deseq2_analysis deseq2_statistics)
 
+add_executable(test_y2h_scores tests/test_y2h_scores.cpp)
+target_link_libraries(test_y2h_scores deseq2_statistics)
+
 # Set compiler flags for all executables
-set(EXECUTABLES test_deseq2 example_usage test_ppm_conversion example_ppm_deseq2_analysis)
+set(EXECUTABLES test_deseq2 example_usage test_ppm_conversion example_ppm_deseq2_analysis test_y2h_scores)
 foreach(EXEC ${EXECUTABLES})
     target_compile_options(${EXEC} PRIVATE -Wall -Wextra -O3)
 endforeach()

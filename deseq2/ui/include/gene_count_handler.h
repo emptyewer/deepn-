@@ -81,8 +81,20 @@ namespace deseq2
          * @brief Parse a single gene count XLSX file (from GeneCount++ output)
          * @param filePath Path to the XLSX file
          * @return GeneCountData structure with parsed data including raw counts
+         * @note DEPRECATED: Returns invalid data. Use parseGeneCountSqliteFile() instead.
          */
         GeneCountData parseGeneCountXlsxFile(const QString &filePath);
+
+        /**
+         * @brief Parse a gene count SQLite database (from GeneCount++ output)
+         * @param filePath Path to the SQLite database (.db or .sqlite)
+         * @return GeneCountData structure with parsed data including raw counts
+         *
+         * Expected schema:
+         *   gene_counts (gene TEXT, count INTEGER, ppm REAL)
+         *   summary     (key TEXT, value TEXT) -- 'file', 'total_reads', 'total_hits'
+         */
+        GeneCountData parseGeneCountSqliteFile(const QString &filePath);
 
         /**
          * @brief Add a gene count file to the collection

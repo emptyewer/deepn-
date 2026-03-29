@@ -33,11 +33,14 @@ void MainWindow::launchGeneCount(QString file) {
   GCStat stat = GCStat();
   QFileInfo fi(file);
   QThread* thread = new QThread;
-  thread->start();
   stat.input = file;
   statistics[fi.baseName()] = stat;
   GCWorker* worker = new GCWorker(&statistics[fi.baseName()]);
   worker->moveToThread(thread);
+  connect(worker, &GCWorker::finished, thread, &QThread::quit);
+  connect(thread, &QThread::finished, worker, &QObject::deleteLater);
+  connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+  thread->start();
   QMetaObject::invokeMethod(worker, "run");
 }
 
@@ -62,7 +65,13 @@ void MainWindow::updateGeneCountProgress() {
   }
 }
 
-void MainWindow::geneCountFinished() {}
+void MainWindow::geneCountFinished() {
+  activeWorkers--;
+  if (activeWorkers <= 0) {
+    ui->start_btn->setEnabled(true);
+    ui->exit_btn->setEnabled(true);
+  }
+}
 
 void MainWindow::setupSlots() {
   connect(sig, &Signals::gc_update_progress_sig, this,
@@ -70,19 +79,11 @@ void MainWindow::setupSlots() {
   connect(sig, &Signals::gc_finished_sig, this, &MainWindow::geneCountFinished);
 }
 
-void MainWindow::on_debug_btn_clicked() {
-  //  readPythonScript("gene_count.py");
-  //  QVariantList args;
-  //  args << 8 << 4;
-  //  QVariant result = python.call("multiply", args);
-  //  QVariant pwd = python.call("get_current_dir");
-  //  qDebug() << result << pwd;
-  //  ui->gc_output->appendPlainText(result.toString());
-  //  ui->gc_output->appendPlainText(pwd.toString());
-  //  ui->gc_output->appendPlainText(python.call("test_utils").toString());
-  //  ui->gc_output->appendPlainText("Emitting...");
-
+void MainWindow::on_start_btn_clicked() {
   ui->gc_output->appendPlainText("Starting Gene Count...");
+  ui->start_btn->setEnabled(false);
+  ui->exit_btn->setEnabled(false);
+  activeWorkers = files.length();
   for (int i = 0; i < files.length(); i++) {
     launchGeneCount(files.at(i));
   }
