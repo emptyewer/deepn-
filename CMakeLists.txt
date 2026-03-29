@@ -13,7 +13,7 @@ if(APPLE)
 endif()
 
 # --- Qt6 ---
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Sql Charts PrintSupport)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Sql Charts PrintSupport Svg)
 
 # --- Eigen3 (header-only, for DESeq2 statistics) ---
 find_package(Eigen3 REQUIRED)

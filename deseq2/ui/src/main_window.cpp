@@ -22,6 +22,8 @@
 #include <QSqlError>
 #include <QClipboard>
 #include <QProcess>
+#include <QInputDialog>
+#include <QSvgGenerator>
 #include <stdexcept>
 #include <algorithm>
 #include <QLegendMarker>
@@ -125,9 +127,20 @@ namespace deseq2
             // Step 6: Statistical testing
             emit progressChanged(80, "Running statistical tests...");
 
-            // Create contrast for the analysis (assuming first condition is reference)
-            Eigen::VectorXd contrast(2);
-            contrast << 0.0, 1.0; // Test second condition vs first
+            // Determine the number of unique conditions
+            QSet<QString> uniqueGroups;
+            for (const auto &group : m_inputData.groupNames)
+                uniqueGroups.insert(group);
+            QList<QString> groupList = uniqueGroups.values();
+            std::sort(groupList.begin(), groupList.end());
+            int numGroups = groupList.size();
+
+            // For the primary contrast (condition 1 vs condition 0)
+            Eigen::VectorXd contrast(numGroups);
+            contrast.setZero();
+            contrast(0) = 0.0;
+            if (numGroups >= 2)
+                contrast(1) = 1.0;
 
             DeseqStats ds(dds, contrast, m_pValueThreshold, true, true);
 
@@ -137,12 +150,71 @@ namespace deseq2
             emit progressChanged(90, "Applying Cook's filtering...");
             ds.cooksFiltering();
 
-            emit progressChanged(95, "Applying independent filtering...");
+            emit progressChanged(92, "Applying independent filtering...");
             ds.independentFiltering();
 
             // Step 7: Generate results
-            emit progressChanged(98, "Generating results...");
+            emit progressChanged(94, "Generating results...");
             Eigen::MatrixXd results = ds.summary();
+
+            // For three-way comparisons, run additional contrasts
+            std::vector<Eigen::MatrixXd> allContrastResults;
+            std::vector<std::string> allContrastLabels;
+
+            // Store first contrast result
+            allContrastResults.push_back(results);
+            if (numGroups >= 2)
+                allContrastLabels.push_back(
+                    groupList[1].toStdString() + " vs " + groupList[0].toStdString());
+
+            if (numGroups >= 3)
+            {
+                // Run additional contrasts for each non-reference group vs reference
+                for (int g = 2; g < numGroups; ++g)
+                {
+                    emit progressChanged(94 + g - 1, QString("Running contrast %1 vs %2...")
+                                                         .arg(groupList[g])
+                                                         .arg(groupList[0]));
+
+                    Eigen::VectorXd extraContrast(numGroups);
+                    extraContrast.setZero();
+                    extraContrast(g) = 1.0;
+
+                    DeseqStats extraDs(dds, extraContrast, m_pValueThreshold, true, true);
+                    extraDs.runWaldTest();
+                    extraDs.cooksFiltering();
+                    extraDs.independentFiltering();
+
+                    allContrastResults.push_back(extraDs.summary());
+                    allContrastLabels.push_back(
+                        groupList[g].toStdString() + " vs " + groupList[0].toStdString());
+                }
+
+                // Also run pairwise contrasts between non-reference groups
+                for (int g = 2; g < numGroups; ++g)
+                {
+                    for (int h = 1; h < g; ++h)
+                    {
+                        emit progressChanged(95, QString("Running contrast %1 vs %2...")
+                                                     .arg(groupList[g])
+                                                     .arg(groupList[h]));
+
+                        Eigen::VectorXd pairContrast(numGroups);
+                        pairContrast.setZero();
+                        pairContrast(g) = 1.0;
+                        pairContrast(h) = -1.0;
+
+                        DeseqStats pairDs(dds, pairContrast, m_pValueThreshold, true, true);
+                        pairDs.runWaldTest();
+                        pairDs.cooksFiltering();
+                        pairDs.independentFiltering();
+
+                        allContrastResults.push_back(pairDs.summary());
+                        allContrastLabels.push_back(
+                            groupList[g].toStdString() + " vs " + groupList[h].toStdString());
+                    }
+                }
+            }
 
             {
                 QMutexLocker locker(&m_stopMutex);
@@ -157,6 +229,11 @@ namespace deseq2
             // Prepare results structure
             AnalysisResults analysisResults;
             analysisResults.results = results;
+
+            // Store multi-contrast results for three-way comparisons
+            analysisResults.contrastResults = allContrastResults;
+            analysisResults.contrastLabels = allContrastLabels;
+            analysisResults.activeContrast = 0;
 
             // Store dispersion data for visualization
             analysisResults.genewiseDispersions = dds.getGenewiseDispersions();
@@ -348,7 +425,14 @@ namespace deseq2
           m_actionResultsTab(nullptr),
           m_actionVisualizationTab(nullptr),
           m_actionAbout(nullptr),
-          m_actionUserGuide(nullptr)
+          m_actionUserGuide(nullptr),
+          m_baitGroupingCombo(nullptr),
+          m_enrichPvalSpinBox(nullptr),
+          m_enrichFcSpinBox(nullptr),
+          m_specPvalSpinBox(nullptr),
+          m_junctionFilesEdit(nullptr),
+          m_browseJunctionBtn(nullptr),
+          m_contrastSelectorCombo(nullptr)
     {
         // Initialize last used directory to Documents folder
         m_lastUsedDirectory = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
@@ -467,6 +551,19 @@ namespace deseq2
         m_progressOutputText = m_ui->progressOutputText;
         m_clearOutputButton = m_ui->clearOutputButton;
         m_saveOutputButton = m_ui->saveOutputButton;
+
+        // Y2H-SCORES Settings elements
+        m_baitGroupingCombo = m_ui->baitGroupingCombo;
+        m_enrichPvalSpinBox = m_ui->enrichPvalSpinBox;
+        m_enrichFcSpinBox = m_ui->enrichFcSpinBox;
+        m_specPvalSpinBox = m_ui->specPvalSpinBox;
+
+        // In-frame scoring (junction files) elements
+        m_junctionFilesEdit = m_ui->junctionFilesEdit;
+        m_browseJunctionBtn = m_ui->browseJunctionBtn;
+
+        // Contrast selector
+        m_contrastSelectorCombo = m_ui->contrastSelectorCombo;
     }
 
     void MainWindow::setupConnections()
@@ -560,6 +657,19 @@ namespace deseq2
         if (m_saveOutputButton)
         {
             connect(m_saveOutputButton, &QPushButton::clicked, this, &MainWindow::onSaveOutput);
+        }
+
+        // Junction files browse button
+        if (m_browseJunctionBtn)
+        {
+            connect(m_browseJunctionBtn, &QPushButton::clicked, this, &MainWindow::onBrowseJunctionFiles);
+        }
+
+        // Contrast selector
+        if (m_contrastSelectorCombo)
+        {
+            connect(m_contrastSelectorCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                    this, &MainWindow::onContrastChanged);
         }
     }
 
@@ -1136,6 +1246,95 @@ namespace deseq2
         }
 
         addProgressMessage("Starting DESeq2 differential expression analysis...");
+
+        // Auto-detect junction SQLite files if not already specified (Task 4)
+        if (m_junctionFilesEdit && m_junctionFilesEdit->text().isEmpty())
+        {
+            if (!m_geneCountHandler->getGeneCountFiles().isEmpty())
+            {
+                QFileInfo firstFile(m_geneCountHandler->getGeneCountFiles().first().fileName);
+                QDir parentDir = firstFile.absoluteDir();
+                parentDir.cdUp(); // Go to parent of input directory
+
+                // Search for junction dice SQLite files
+                QStringList junctionPatterns = {"*jdice*.sqlite", "*.blat.sqlite"};
+                QStringList foundFiles;
+
+                for (const auto &pattern : junctionPatterns)
+                {
+                    QStringList matches = parentDir.entryList(QStringList() << pattern, QDir::Files);
+                    for (const auto &match : matches)
+                    {
+                        foundFiles.append(parentDir.absoluteFilePath(match));
+                    }
+                }
+
+                // Also check the input directory itself
+                QDir inputDir = firstFile.absoluteDir();
+                for (const auto &pattern : junctionPatterns)
+                {
+                    QStringList matches = inputDir.entryList(QStringList() << pattern, QDir::Files);
+                    for (const auto &match : matches)
+                    {
+                        QString fullPath = inputDir.absoluteFilePath(match);
+                        if (!foundFiles.contains(fullPath))
+                            foundFiles.append(fullPath);
+                    }
+                }
+
+                if (!foundFiles.isEmpty())
+                {
+                    m_junctionFilesEdit->setText(foundFiles.join("; "));
+                    addProgressMessage(QString("Auto-detected %1 junction SQLite file(s).").arg(foundFiles.size()));
+                }
+            }
+        }
+
+        // Populate the contrast selector for three-way comparisons (Task 5)
+        if (m_contrastSelectorCombo && uniqueGroups.size() >= 3)
+        {
+            m_contrastSelectorCombo->blockSignals(true);
+            m_contrastSelectorCombo->clear();
+
+            QList<QString> groupList = uniqueGroups.values();
+            std::sort(groupList.begin(), groupList.end());
+
+            // Generate all pairwise contrasts: each group vs group 0 (reference)
+            for (int i = 1; i < groupList.size(); ++i)
+            {
+                m_contrastSelectorCombo->addItem(
+                    QString("%1 vs %2").arg(groupList[i]).arg(groupList[0]));
+            }
+            // Also add non-reference contrasts for three-way
+            if (groupList.size() >= 3)
+            {
+                for (int i = 2; i < groupList.size(); ++i)
+                {
+                    for (int j = 1; j < i; ++j)
+                    {
+                        m_contrastSelectorCombo->addItem(
+                            QString("%1 vs %2").arg(groupList[i]).arg(groupList[j]));
+                    }
+                }
+            }
+
+            m_contrastSelectorCombo->blockSignals(false);
+            addProgressMessage(QString("Three-way comparison: %1 contrasts available.").arg(m_contrastSelectorCombo->count()));
+        }
+        else if (m_contrastSelectorCombo)
+        {
+            // Two-way: single contrast
+            m_contrastSelectorCombo->blockSignals(true);
+            m_contrastSelectorCombo->clear();
+            QList<QString> groupList = uniqueGroups.values();
+            std::sort(groupList.begin(), groupList.end());
+            if (groupList.size() == 2)
+            {
+                m_contrastSelectorCombo->addItem(
+                    QString("%1 vs %2").arg(groupList[1]).arg(groupList[0]));
+            }
+            m_contrastSelectorCombo->blockSignals(false);
+        }
 
         // Get analysis parameters
         double pValueThreshold = m_pValueThresholdSpinBox ? m_pValueThresholdSpinBox->value() : 0.05;
@@ -1839,6 +2038,8 @@ namespace deseq2
             plotMAPlot();
         else if (plotType == "Dispersion Plot")
             plotDispersionPlot();
+        else if (plotType == "Three-way Scatter")
+            plotThreeWayScatter();
     }
 
     void MainWindow::plotMAPlot()
@@ -2089,6 +2290,143 @@ namespace deseq2
         m_plotWidget->setChart(chart);
     }
 
+    void MainWindow::plotThreeWayScatter()
+    {
+        if (!m_plotWidget || !m_analysisResults.isValid)
+            return;
+
+        // Requires at least 2 contrasts from a three-way comparison
+        if (m_analysisResults.contrastResults.size() < 2)
+        {
+            addProgressMessage("Three-way scatter requires a three-way comparison (at least 2 contrasts). "
+                               "Run a three-way analysis first.");
+
+            // Show an informative empty chart
+            QChart *chart = new QChart();
+            chart->setTitle("Three-way Scatter: No multi-contrast data available");
+            m_plotWidget->setChart(chart);
+            return;
+        }
+
+        const auto &res1 = m_analysisResults.contrastResults[0]; // contrast 1: log2FC on x-axis
+        const auto &res2 = m_analysisResults.contrastResults[1]; // contrast 2: log2FC on y-axis
+
+        double pThresh = m_pValueThresholdSpinBox ? m_pValueThresholdSpinBox->value() : 0.05;
+        int ptSize = m_pointSizeSpinBox ? m_pointSizeSpinBox->value() : 5;
+        qreal markerSize = static_cast<qreal>(ptSize);
+
+        // Three categories: significant in both, significant in one only, neither
+        auto *bothSeries = new QScatterSeries();
+        bothSeries->setName("Significant in both");
+        bothSeries->setMarkerSize(markerSize);
+        bothSeries->setColor(QColor(220, 50, 50));   // Red
+        bothSeries->setBorderColor(QColor(220, 50, 50));
+
+        auto *oneSeries = new QScatterSeries();
+        oneSeries->setName("Significant in one");
+        oneSeries->setMarkerSize(markerSize);
+        oneSeries->setColor(QColor(50, 100, 220));    // Blue
+        oneSeries->setBorderColor(QColor(50, 100, 220));
+
+        auto *nsSeries = new QScatterSeries();
+        nsSeries->setName("Not significant");
+        nsSeries->setMarkerSize(markerSize);
+        nsSeries->setColor(QColor(180, 180, 180));    // Gray
+        nsSeries->setBorderColor(QColor(180, 180, 180));
+
+        int nGenes = std::min(static_cast<int>(res1.rows()), static_cast<int>(res2.rows()));
+        double maxAbsX = 0.0;
+        double maxAbsY = 0.0;
+
+        for (int i = 0; i < nGenes; ++i)
+        {
+            double lfc1 = res1(i, 1); // log2FC from contrast 1
+            double lfc2 = res2(i, 1); // log2FC from contrast 2
+            double padj1 = res1(i, 5); // adjusted p-value from contrast 1
+            double padj2 = res2(i, 5); // adjusted p-value from contrast 2
+
+            if (!std::isfinite(lfc1) || !std::isfinite(lfc2))
+                continue;
+
+            bool sig1 = !std::isnan(padj1) && padj1 < pThresh;
+            bool sig2 = !std::isnan(padj2) && padj2 < pThresh;
+
+            if (sig1 && sig2)
+                bothSeries->append(lfc1, lfc2);
+            else if (sig1 || sig2)
+                oneSeries->append(lfc1, lfc2);
+            else
+                nsSeries->append(lfc1, lfc2);
+
+            maxAbsX = std::max(maxAbsX, std::abs(lfc1));
+            maxAbsY = std::max(maxAbsY, std::abs(lfc2));
+        }
+
+        // Reference lines at x=0 and y=0
+        double xExtent = maxAbsX * 1.2;
+        double yExtent = maxAbsY * 1.2;
+
+        auto *hRefLine = new QLineSeries();
+        hRefLine->setName("y = 0");
+        hRefLine->setPen(QPen(Qt::darkGray, 1, Qt::DashLine));
+        hRefLine->append(-xExtent, 0.0);
+        hRefLine->append(xExtent, 0.0);
+
+        auto *vRefLine = new QLineSeries();
+        vRefLine->setName("x = 0");
+        vRefLine->setPen(QPen(Qt::darkGray, 1, Qt::DashLine));
+        vRefLine->append(0.0, -yExtent);
+        vRefLine->append(0.0, yExtent);
+
+        // Build chart
+        QChart *chart = new QChart();
+        chart->setTitle("Three-way Scatter");
+        chart->addSeries(nsSeries);
+        chart->addSeries(oneSeries);
+        chart->addSeries(bothSeries);
+        chart->addSeries(hRefLine);
+        chart->addSeries(vRefLine);
+
+        // Determine axis labels from contrast labels if available
+        QString xLabel = "log2FC (Contrast 1)";
+        QString yLabel = "log2FC (Contrast 2)";
+        if (m_analysisResults.contrastLabels.size() >= 2)
+        {
+            xLabel = QString("log2FC (%1)").arg(QString::fromStdString(m_analysisResults.contrastLabels[0]));
+            yLabel = QString("log2FC (%1)").arg(QString::fromStdString(m_analysisResults.contrastLabels[1]));
+        }
+
+        auto *axisX = new QValueAxis();
+        axisX->setTitleText(xLabel);
+        chart->addAxis(axisX, Qt::AlignBottom);
+        nsSeries->attachAxis(axisX);
+        oneSeries->attachAxis(axisX);
+        bothSeries->attachAxis(axisX);
+        hRefLine->attachAxis(axisX);
+        vRefLine->attachAxis(axisX);
+
+        auto *axisY = new QValueAxis();
+        axisY->setTitleText(yLabel);
+        chart->addAxis(axisY, Qt::AlignLeft);
+        nsSeries->attachAxis(axisY);
+        oneSeries->attachAxis(axisY);
+        bothSeries->attachAxis(axisY);
+        hRefLine->attachAxis(axisY);
+        vRefLine->attachAxis(axisY);
+
+        chart->legend()->setVisible(true);
+        chart->legend()->setAlignment(Qt::AlignBottom);
+
+        // Hide reference line legend markers
+        for (auto *marker : chart->legend()->markers())
+        {
+            if (marker->series() == hRefLine || marker->series() == vRefLine)
+                marker->setVisible(false);
+        }
+
+        m_plotWidget->setChart(chart);
+    }
+
     void MainWindow::onSavePlot()
     {
         if (!m_plotWidget || !m_plotWidget->chart())
@@ -2098,14 +2436,28 @@ namespace deseq2
             static_cast<QWidget *>(this),
             "Save Plot",
             m_lastUsedDirectory,
-            "PNG Files (*.png);;PDF Files (*.pdf);;All Files (*)");
+            "PNG Files (*.png);;PDF Files (*.pdf);;SVG Files (*.svg);;All Files (*)");
 
         if (!fileName.isEmpty())
         {
             updateLastUsedDirectory(fileName);
 
             bool ok = false;
-            if (fileName.endsWith(".pdf", Qt::CaseInsensitive))
+            if (fileName.endsWith(".svg", Qt::CaseInsensitive))
+            {
+                // SVG export using QSvgGenerator
+                QSvgGenerator generator;
+                generator.setFileName(fileName);
+                generator.setSize(QSize(800, 600));
+                generator.setViewBox(QRect(0, 0, 800, 600));
+                generator.setTitle("StatMaker++ Plot");
+                generator.setDescription("Exported from StatMaker++ DESeq2 analysis");
+                QPainter painter(&generator);
+                m_plotWidget->render(&painter);
+                painter.end();
+                ok = true;
+            }
+            else if (fileName.endsWith(".pdf", Qt::CaseInsensitive))
             {
                 QPrinter printer(QPrinter::HighResolution);
                 printer.setOutputFormat(QPrinter::PdfFormat);
@@ -2117,15 +2469,42 @@ namespace deseq2
             }
             else
             {
-                // Render at 2x resolution for high-DPI output
-                QPixmap pixmap = m_plotWidget->grab();
-                QPixmap scaled = pixmap.scaled(pixmap.size() * 2, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-                ok = scaled.save(fileName, "PNG");
+                // PNG export with configurable DPI
+                bool dpiOk = false;
+                int dpi = QInputDialog::getInt(
+                    this,
+                    "PNG Export DPI",
+                    "Enter export DPI (72 = screen, 150 = print, 300 = publication):",
+                    150,   // default
+                    72,    // min
+                    600,   // max
+                    1,     // step
+                    &dpiOk);
+
+                if (!dpiOk)
+                    return; // User cancelled
+
+                // Calculate scale factor relative to screen DPI (72)
+                double scaleFactor = static_cast<double>(dpi) / 72.0;
+                int w = static_cast<int>(800 * scaleFactor);
+                int h = static_cast<int>(600 * scaleFactor);
+
+                QPixmap pixmap(w, h);
+                pixmap.fill(Qt::white);
+                QPainter painter(&pixmap);
+                painter.setRenderHint(QPainter::Antialiasing);
+                m_plotWidget->render(&painter, QRect(0, 0, w, h));
+                painter.end();
+                ok = pixmap.save(fileName, "PNG");
+
+                if (ok)
+                    addProgressMessage(QString("Plot saved at %1 DPI (%2x%3 px) to: %4")
+                                           .arg(dpi).arg(w).arg(h).arg(fileName));
             }
 
-            if (ok)
+            if (ok && !fileName.endsWith(".png", Qt::CaseInsensitive))
                 addProgressMessage("Plot saved to: " + fileName);
-            else
+            else if (!ok)
                 addProgressMessage("Failed to save plot.");
         }
     }
@@ -2415,6 +2794,98 @@ namespace deseq2
             QString geneName = m_resultsTable->item(row, 0)->text();
             QApplication::clipboard()->setText(geneName);
         }
+    }
+
+    // =========================================================================
+    // Junction files browsing (Task 4)
+    // =========================================================================
+
+    void MainWindow::onBrowseJunctionFiles()
+    {
+        QStringList fileNames = QFileDialog::getOpenFileNames(
+            this,
+            "Select Junction SQLite Files",
+            m_lastUsedDirectory,
+            "SQLite Files (*.sqlite *.db);;All Files (*)");
+
+        if (!fileNames.isEmpty())
+        {
+            updateLastUsedDirectory(fileNames.first());
+
+            // Display selected files as semicolon-separated list
+            if (m_junctionFilesEdit)
+            {
+                m_junctionFilesEdit->setText(fileNames.join("; "));
+            }
+
+            addProgressMessage(QString("Selected %1 junction SQLite file(s).").arg(fileNames.size()));
+        }
+    }
+
+    // =========================================================================
+    // Contrast selector for three-way comparisons (Task 5)
+    // =========================================================================
+
+    void MainWindow::onContrastChanged()
+    {
+        if (!m_contrastSelectorCombo || !m_analysisResults.isValid)
+            return;
+
+        int contrastIdx = m_contrastSelectorCombo->currentIndex();
+
+        // Check if we have multi-contrast results
+        if (m_analysisResults.contrastResults.empty())
+        {
+            addProgressMessage("No multi-contrast results available. "
+                               "Run a three-way comparison to use the contrast selector.");
+            return;
+        }
+
+        if (contrastIdx < 0 || contrastIdx >= static_cast<int>(m_analysisResults.contrastResults.size()))
+        {
+            addProgressMessage(QString("Invalid contrast index: %1").arg(contrastIdx));
+            return;
+        }
+
+        addProgressMessage(QString("Switching to contrast: %1").arg(m_contrastSelectorCombo->currentText()));
+
+        // Update the active contrast
+        m_analysisResults.activeContrast = contrastIdx;
+
+        // Replace the main results matrix with the selected contrast's results
+        m_analysisResults.results = m_analysisResults.contrastResults[contrastIdx];
+
+        // Recalculate summary statistics
+        double pThresh = m_pValueThresholdSpinBox ? m_pValueThresholdSpinBox->value() : 0.05;
+        m_analysisResults.significantGenes = 0;
+        m_analysisResults.upregulatedGenes = 0;
+        m_analysisResults.downregulatedGenes = 0;
+
+        const auto &res = m_analysisResults.results;
+        for (int i = 0; i < res.rows(); ++i)
+        {
+            double padj = res(i, 5);
+            double lfc = res(i, 1);
+            if (!std::isnan(padj) && padj < pThresh)
+            {
+                m_analysisResults.significantGenes++;
+                if (lfc > 0)
+                    m_analysisResults.upregulatedGenes++;
+                else if (lfc < 0)
+                    m_analysisResults.downregulatedGenes++;
+            }
+        }
+
+        // Refresh UI
+        updateResultsTable(m_analysisResults);
+        updateResultsSummary(m_analysisResults);
+        refreshPlot();
+
+        addProgressMessage(QString("Contrast '%1': %2 significant genes (%3 up, %4 down)")
+                               .arg(m_contrastSelectorCombo->currentText())
+                               .arg(m_analysisResults.significantGenes)
+                               .arg(m_analysisResults.upregulatedGenes)
+                               .arg(m_analysisResults.downregulatedGenes));
     }
 
 } // namespace deseq2

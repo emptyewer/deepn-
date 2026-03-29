@@ -219,6 +219,155 @@
          </widget>
         </item>
         <item>
+         <widget class="QGroupBox" name="y2hScoresSettingsGroup">
+          <property name="title">
+           <string>Y2H-SCORES Settings</string>
+          </property>
+          <layout class="QVBoxLayout" name="y2hScoresSettingsLayout">
+           <item>
+            <layout class="QHBoxLayout" name="y2hScoresRow1">
+             <item>
+              <widget class="QLabel" name="baitGroupingLabel">
+               <property name="text">
+                <string>Bait Grouping:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="baitGroupingCombo">
+               <item>
+                <property name="text">
+                 <string>Auto (10 per group)</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>All in one group</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Custom...</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="enrichPvalLabel">
+               <property name="text">
+                <string>Enrichment p-value threshold:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="enrichPvalSpinBox">
+               <property name="decimals">
+                <number>3</number>
+               </property>
+               <property name="minimum">
+                <double>0.000000000000000</double>
+               </property>
+               <property name="maximum">
+                <double>1.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.010000000000000</double>
+               </property>
+               <property name="value">
+                <double>1.000000000000000</double>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="y2hScoresRow2">
+             <item>
+              <widget class="QLabel" name="enrichFcLabel">
+               <property name="text">
+                <string>Enrichment fold-change threshold:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="enrichFcSpinBox">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="minimum">
+                <double>0.000000000000000</double>
+               </property>
+               <property name="maximum">
+                <double>10.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.100000000000000</double>
+               </property>
+               <property name="value">
+                <double>0.000000000000000</double>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="specPvalLabel">
+               <property name="text">
+                <string>Specificity p-value threshold:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="specPvalSpinBox">
+               <property name="decimals">
+                <number>3</number>
+               </property>
+               <property name="minimum">
+                <double>0.000000000000000</double>
+               </property>
+               <property name="maximum">
+                <double>1.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.010000000000000</double>
+               </property>
+               <property name="value">
+                <double>1.000000000000000</double>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="y2hScoresRow3">
+             <item>
+              <widget class="QLabel" name="junctionFilesLabel">
+               <property name="text">
+                <string>Junction SQLite files:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="junctionFilesEdit">
+               <property name="readOnly">
+                <bool>true</bool>
+               </property>
+               <property name="placeholderText">
+                <string>Auto-detected or browse for *jdice*.sqlite files...</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="browseJunctionBtn">
+               <property name="text">
+                <string>Browse...</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
          <widget class="QGroupBox" name="groupAssignmentGroup">
           <property name="title">
            <string>Group Assignment</string>
@@ -427,6 +576,39 @@
          </widget>
         </item>
         <item>
+         <layout class="QHBoxLayout" name="contrastSelectorLayout">
+          <item>
+           <widget class="QLabel" name="contrastSelectorLabel">
+            <property name="text">
+             <string>Contrast:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="contrastSelectorCombo">
+            <item>
+             <property name="text">
+              <string>Group 1 vs Group 0</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <spacer name="contrastSpacer">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+        <item>
          <widget class="QGroupBox" name="resultsTableGroup">
           <property name="title">
            <string>Results Table</string>
@@ -589,6 +771,11 @@
              <item>
               <property name="text">
                <string>Dispersion Plot</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Three-way Scatter</string>
               </property>
              </item>
             </widget>

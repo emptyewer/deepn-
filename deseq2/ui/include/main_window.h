@@ -76,6 +76,13 @@ namespace deseq2
         std::vector<deseq2::EnrichmentResult> enrichmentScores;
         std::vector<deseq2::InFrameResult> inFrameScores;
         std::vector<deseq2::Y2HScore> y2hScores;
+
+        // Multi-contrast results for three-way comparisons
+        // contrastResults[i] holds the Nx6 results matrix for contrast i
+        std::vector<Eigen::MatrixXd> contrastResults;
+        // contrastLabels[i] describes each contrast (e.g. "Group 1 vs Group 0")
+        std::vector<std::string> contrastLabels;
+        int activeContrast = 0; // Index of currently displayed contrast
     };
 
     /**
@@ -220,6 +227,12 @@ namespace deseq2
         void onOpenInMultiQuery();
         void onOpenInReadDepth();
         void onCopyGeneName();
+
+        // Junction files browsing
+        void onBrowseJunctionFiles();
+
+        // Contrast selector
+        void onContrastChanged();
 
         // Menu actions
         void onOpenCounts();
@@ -382,10 +395,24 @@ namespace deseq2
         QPushButton *m_exportDataButton;
         QPushButton *m_printPlotButton;
 
+        // Y2H-SCORES Settings components
+        QComboBox *m_baitGroupingCombo;
+        QDoubleSpinBox *m_enrichPvalSpinBox;
+        QDoubleSpinBox *m_enrichFcSpinBox;
+        QDoubleSpinBox *m_specPvalSpinBox;
+
+        // In-frame scoring (junction files) components
+        QLineEdit *m_junctionFilesEdit;
+        QPushButton *m_browseJunctionBtn;
+
+        // Contrast selector for three-way comparisons
+        QComboBox *m_contrastSelectorCombo;
+
         // Plot methods
         void plotMAPlot();
         void plotVolcanoPlot();
         void plotDispersionPlot();
+        void plotThreeWayScatter();
         void refreshPlot();
 
         // Progress output components

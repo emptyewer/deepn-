@@ -23,5 +23,6 @@ target_link_libraries(deseq2_app PRIVATE
     Qt6::Sql
     Qt6::Charts
     Qt6::PrintSupport
+    Qt6::Svg
     deseq2_statistics
 )
