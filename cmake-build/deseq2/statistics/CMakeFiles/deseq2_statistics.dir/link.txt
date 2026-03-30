@@ -1,2 +1,0 @@
-/usr/bin/ar qc libdeseq2_statistics.a CMakeFiles/deseq2_statistics.dir/deseq2_statistics_autogen/mocs_compilation.cpp.o CMakeFiles/deseq2_statistics.dir/src/deseq_dataset.cpp.o CMakeFiles/deseq2_statistics.dir/src/deseq_stats.cpp.o CMakeFiles/deseq2_statistics.dir/src/utils.cpp.o
-/usr/bin/ranlib libdeseq2_statistics.a

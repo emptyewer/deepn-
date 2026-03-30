@@ -1,35 +1,70 @@
-build-*
-build_*
-pythonqt/.github
-pythonqt/build/
+# Build directories
+build/
+build-*/
+build_*/
+cmake-build/
+cmake-build-*/
+
+# Legacy / backup directories (removed from repo)
+backup/
+archive/
+pythonqt/
+
+# Submodules managed externally
+ncbi/*
+samtools
+statgen
+
+# IDE / editor
+.idea/
+.qtc_clangd/
+CMakeLists.txt.user
+*.pro.user
 deepn.pro.user
 .qmake.stash
+
+# Claude / Octopus tool state
+.claude-octopus/
+.claude/
+
+# macOS
 .DS_Store
+
+# Build artifacts / packaging
 libs
-deepn++_linux_64bit.7z
-CMakeLists.txt.user
-deepn++_windows_64bit.7z
-deepn++_mac_64bit.7z
-test
-.idea/
-**.pro.user
-Makefile
-nohup.out
-.qtc_clangd/
-conan.lock
-conanbuildinfo.cmake
-conanbuildinfo.pri
-conanbuildinfo.txt
-conaninfo.txt
-graph_info.json
+*.7z
+*.tar.gz
 mac-release
 release_*
 debug_*
-ncbi/*
-data/old/
 macOS_release/
 macOS_Release/
 macOS_debug/
 macOS_Debug/
+nohup.out
 _*
+
+# Conan (legacy)
+conan.lock
+conanbuildinfo.*
+conaninfo.txt
+graph_info.json
+
+# Data (generated / large)
+data/old/
 data/blast_db/
+
+# Runtime outputs (created by pipeline, not source)
+gene_count_summary/
+query_files/
+junction_diced_fasta/
+mapped_files/
+analyzed_files/
+deseq2_results.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# Qt generated
+*.qrc.cpp
+moc_*.cpp
+ui_*.h
