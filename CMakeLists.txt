@@ -101,6 +101,9 @@ target_link_libraries(test_deseq2_validation deseq2_statistics)
 add_executable(test_y2h_scores ${DESEQ2_STATS_DIR}/tests/test_y2h_scores.cpp)
 target_link_libraries(test_y2h_scores deseq2_statistics)
 
+# --- Shared data/widget libraries ---
+add_subdirectory(deepn_common)
+
 # --- Subprojects ---
 add_subdirectory(junction_dice)
 add_subdirectory(gene_count)

@@ -29,6 +29,8 @@ public:
                                          QListWidgetItem *previous);
   void on_junction_dice_btn_clicked();
   void on_deseq2_btn_clicked();
+  void on_query_blast_btn_clicked();
+  void on_read_depth_btn_clicked();
   void on_actionDB_Path_triggered();
 
  private:

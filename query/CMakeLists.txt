@@ -6,10 +6,15 @@ qt_add_executable(query
     main.cpp
     mainwindow.cpp
     mainwindow.h
-    dockwidget.cpp
-    dockwidget.h
+    junction_plot_widget.cpp
+    junction_plot_widget.h
+    junction_table_model.cpp
+    junction_table_model.h
+    gene_detail_panel.cpp
+    gene_detail_panel.h
+    comparison_manager.cpp
+    comparison_manager.h
     mainwindow.ui
-    dockwidget.ui
     ${ICON_FILE}
 )
 
@@ -23,8 +28,12 @@ if(WIN32)
 endif()
 
 target_link_libraries(query PRIVATE
+    deepn_data
+    deepn_widgets
     Qt6::Core
     Qt6::Gui
     Qt6::Widgets
+    Qt6::Sql
     Qt6::Charts
+    Qt6::Svg
 )

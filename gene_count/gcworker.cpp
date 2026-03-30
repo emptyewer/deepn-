@@ -229,10 +229,15 @@ void GCWorker::setupDB() {
   query.exec("CREATE TABLE IF NOT EXISTS maps ("
              "id INTEGER PRIMARY KEY AUTOINCREMENT, "
              "read TEXT, gene TEXT, qstart INTEGER, qend INTEGER, "
-             "refseq TEXT, frame TEXT, location TEXT)");
+             "refseq TEXT, frame TEXT, location TEXT, "
+             "rstart INTEGER, rend INTEGER)");
   query.exec("DELETE FROM maps");
-  query.prepare("INSERT INTO maps (read, gene, qstart, qend, refseq, frame, location) "
-                "VALUES (:read, :gene, :qstart, :qend, :refseq, :frame, :location)");
+  // Schema metadata for version tracking
+  query.exec("CREATE TABLE IF NOT EXISTS schema_meta ("
+             "key TEXT PRIMARY KEY, value TEXT)");
+  query.exec("INSERT OR REPLACE INTO schema_meta VALUES ('schema_version', '2')");
+  query.prepare("INSERT INTO maps (read, gene, qstart, qend, refseq, frame, location, rstart, rend) "
+                "VALUES (:read, :gene, :qstart, :qend, :refseq, :frame, :location, :rstart, :rend)");
   db.transaction();
 }
 
@@ -244,6 +249,8 @@ void GCWorker::writeToDatabase(QList<ReadHits> *collectedReads) {
   QVariantList nms;
   QVariantList frames;
   QVariantList locations;
+  QVariantList rstarts;
+  QVariantList rends;
   for (ReadHits &hits : *collectedReads) {
     for (const MapHit &hit : hits) {
       reads << hit.read_;
@@ -253,6 +260,8 @@ void GCWorker::writeToDatabase(QList<ReadHits> *collectedReads) {
       nms << hit.nm_number_;
       frames << hit.frame();
       locations << hit.location();
+      rstarts << hit.rstart_;
+      rends << hit.rend_;
     }
   }
 
@@ -265,8 +274,8 @@ void GCWorker::writeToDatabase(QList<ReadHits> *collectedReads) {
   }
 
   query.prepare(
-      "INSERT INTO maps (read, gene, qstart, qend, refseq, frame, location) "
-      "VALUES (:read, :gene, :qstart, :qend, :refseq, :frame, :location)");
+      "INSERT INTO maps (read, gene, qstart, qend, refseq, frame, location, rstart, rend) "
+      "VALUES (:read, :gene, :qstart, :qend, :refseq, :frame, :location, :rstart, :rend)");
   query.bindValue(":read", reads);
   query.bindValue(":gene", genes);
   query.bindValue(":qstart", qstarts);
@@ -274,6 +283,8 @@ void GCWorker::writeToDatabase(QList<ReadHits> *collectedReads) {
   query.bindValue(":refseq", nms);
   query.bindValue(":frame", frames);
   query.bindValue(":location", locations);
+  query.bindValue(":rstart", rstarts);
+  query.bindValue(":rend", rends);
   if (!query.execBatch()) {
     qDebug() << "Error:" << query.lastError().text();
     return;

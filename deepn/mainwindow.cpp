@@ -63,7 +63,7 @@ void MainWindow::gatherFilesToggleButtons() {
     ui->gene_count_btn->setEnabled(false);
   }
 
-  if (files["query_files"].length() > 0) {
+  if (files["analyzed_files"].length() > 0) {
     ui->query_blast_btn->setEnabled(true);
   } else {
     ui->query_blast_btn->setEnabled(false);
@@ -75,7 +75,8 @@ void MainWindow::gatherFilesToggleButtons() {
     ui->read_depth_btn->setEnabled(false);
   }
 
-  if (files["analyzed_files"].length() >= 2) {
+  if (files["gene_count_summary"].length() >= 2 ||
+      files["analyzed_files"].length() >= 2) {
     ui->deseq2_btn->setEnabled(true);
   } else {
     ui->deseq2_btn->setEnabled(false);
@@ -285,9 +286,72 @@ void MainWindow::on_deseq2_btn_clicked() {
   }
   ui->status_text->appendPlainText(deseq2_path);
   QStringList arguments;
-  arguments << files["analyzed_files"];
+  arguments << "--workdir" << parentDir.absolutePath();
   process.setProcessChannelMode(QProcess::ForwardedChannels);
   process.start(QDir::toNativeSeparators(deseq2_path), arguments);
+  process.waitForFinished(-1);
+}
+
+void MainWindow::on_query_blast_btn_clicked() {
+  QDir application_directory = QDir(QCoreApplication::applicationDirPath());
+  QString query_path;
+  if (QSysInfo::productType() == "osx" || QSysInfo::productType() == "macos") {
+    application_directory.cdUp();
+    application_directory.cdUp();
+    query_path = appendPath(
+        application_directory.path(),
+        "Contents/Resources/MultiQuery++.app/Contents/MacOS/MultiQuery++");
+  } else if (QSysInfo::productType() == "windows" ||
+             QSysInfo::productType() == "winrt") {
+    query_path =
+        appendPath(application_directory.path(), "query/MultiQuery++.exe");
+  } else {
+    query_path =
+        appendPath(application_directory.path(), "query/MultiQuery++");
+  }
+  ui->status_text->appendPlainText(query_path);
+  QStringList arguments;
+  arguments << "--workdir" << parentDir.absolutePath()
+            << "--datasets" << files["analyzed_files"].join(",");
+  // Pass gene reference database path if available
+  QListWidgetItem* currentDb = ui->db_list_wgt->currentItem();
+  if (currentDb) {
+    QMap<QString, QVariant> dbData = currentDb->data(Qt::UserRole).toMap();
+    arguments << "--generef" << dbData["map_db"].toString();
+  }
+  process.setProcessChannelMode(QProcess::ForwardedChannels);
+  process.start(QDir::toNativeSeparators(query_path), arguments);
+  process.waitForFinished(-1);
+}
+
+void MainWindow::on_read_depth_btn_clicked() {
+  QDir application_directory = QDir(QCoreApplication::applicationDirPath());
+  QString depth_path;
+  if (QSysInfo::productType() == "osx" || QSysInfo::productType() == "macos") {
+    application_directory.cdUp();
+    application_directory.cdUp();
+    depth_path = appendPath(
+        application_directory.path(),
+        "Contents/Resources/ReadDepth++.app/Contents/MacOS/ReadDepth++");
+  } else if (QSysInfo::productType() == "windows" ||
+             QSysInfo::productType() == "winrt") {
+    depth_path =
+        appendPath(application_directory.path(), "read_depth/ReadDepth++.exe");
+  } else {
+    depth_path =
+        appendPath(application_directory.path(), "read_depth/ReadDepth++");
+  }
+  ui->status_text->appendPlainText(depth_path);
+  QStringList arguments;
+  arguments << "--workdir" << parentDir.absolutePath()
+            << "--datasets" << files["analyzed_files"].join(",");
+  QListWidgetItem* currentDb = ui->db_list_wgt->currentItem();
+  if (currentDb) {
+    QMap<QString, QVariant> dbData = currentDb->data(Qt::UserRole).toMap();
+    arguments << "--generef" << dbData["map_db"].toString();
+  }
+  process.setProcessChannelMode(QProcess::ForwardedChannels);
+  process.start(QDir::toNativeSeparators(depth_path), arguments);
   process.waitForFinished(-1);
 }
 
