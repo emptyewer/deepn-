@@ -78,6 +78,7 @@ JunctionPlotWidget::JunctionPlotWidget(QWidget* parent)
 void JunctionPlotWidget::setProfile(const GeneJunctionProfile& profile)
 {
     m_profile = profile;
+    m_annotation = profile.annotation;   // keep for codon lines across collapsed switches
     m_useCollapsed = false;
     m_collapsed.clear();
     m_highlightedPos = -1;
@@ -224,8 +225,30 @@ void JunctionPlotWidget::buildChart()
     chart()->addSeries(m_highlightLine);
     m_highlightLine->attachAxis(m_xAxis);
     m_highlightLine->attachAxis(m_yAxis);
-    // Hide from legend
     chart()->legend()->markers(m_highlightLine).first()->setVisible(false);
+
+    // ORF boundary markers: green vertical at ATG (orfStart), red at STOP (orfEnd)
+    // Matches the original BlastQuery "red bars (start/stop codons)" in the PPM chart.
+    m_atgLine  = nullptr;
+    m_stopLine = nullptr;
+    if (m_annotation.isValid()) {
+        auto makeCodonLine = [&](int pos, QColor color, const QString& label) -> QLineSeries* {
+            auto* line = new QLineSeries(this);
+            line->setName(label);
+            QPen pen(color);
+            pen.setWidthF(1.5);
+            line->setPen(pen);
+            line->append(pos, 0);
+            line->append(pos, m_fullYMax);
+            chart()->addSeries(line);
+            line->attachAxis(m_xAxis);
+            line->attachAxis(m_yAxis);
+            chart()->legend()->markers(line).first()->setVisible(false);
+            return line;
+        };
+        m_atgLine  = makeCodonLine(m_annotation.orfStart, QColor(34, 197, 94, 200),  "ATG");
+        m_stopLine = makeCodonLine(m_annotation.orfEnd,   QColor(239, 68,  68, 200),  "STOP");
+    }
 
     updateHighlight();
 }
@@ -323,6 +346,20 @@ void JunctionPlotWidget::updateHighlight()
     } else {
         m_highlightLine->replace(0, QPointF(m_highlightedPos, 0));
         m_highlightLine->replace(1, QPointF(m_highlightedPos, m_fullYMax));
+    }
+}
+
+void JunctionPlotWidget::updateCodonLines()
+{
+    if (m_atgLine) {
+        int pos = m_annotation.orfStart;
+        m_atgLine->replace(0, QPointF(pos, 0));
+        m_atgLine->replace(1, QPointF(pos, m_fullYMax));
+    }
+    if (m_stopLine) {
+        int pos = m_annotation.orfEnd;
+        m_stopLine->replace(0, QPointF(pos, 0));
+        m_stopLine->replace(1, QPointF(pos, m_fullYMax));
     }
 }
 

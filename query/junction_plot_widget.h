@@ -80,6 +80,13 @@ private:
 
     // Highlight overlay
     QLineSeries* m_highlightLine = nullptr;
+
+    // ORF codon markers (vertical lines at ATG and STOP positions)
+    QLineSeries* m_atgLine  = nullptr;
+    QLineSeries* m_stopLine = nullptr;
+    deepn::GeneAnnotation m_annotation;   // kept across collapsed/non-collapsed switches
+
+    void updateCodonLines();
 };
 
 #endif // JUNCTION_PLOT_WIDGET_H
