@@ -33,10 +33,13 @@ class MainWindow : public QMainWindow {
   Signals *sig = Signals::getCommonInstance();
   QMap<QString, GCStat> statistics = {};
   QStringList files = {};
+  QStringList pendingFiles = {};
   int activeWorkers = 0;
+  int maxWorkers = 1;
   QString appendPath(const QString &path1, const QString &path2);
   void setupSlots();
   void launchGeneCount(QString file);
+  void launchNext();
 };
 
 #endif  // MAINWINDOW_H_GENECOUNT

@@ -3,8 +3,10 @@
 
 #include "data_structures.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QCompleter>
+#include <QDoubleSpinBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -28,7 +30,7 @@ public:
     int currentIndex() const;
 
     // Navigation
-    void selectGene(const QString& gene);
+    bool selectGene(const QString& gene);
     void goToNext();
     void goToPrev();
 
@@ -43,15 +45,22 @@ private:
     QPushButton* m_nextBtn;
     QLabel* m_infoLabel;
     QComboBox* m_sortCombo;
-    QStringList m_geneList;
+    QCheckBox* m_filterCheck;
+    QDoubleSpinBox* m_padjSpin;
+    QDoubleSpinBox* m_l2fcSpin;
+    QStringList m_geneList;            // currently displayed (after filter+sort)
+    QStringList m_unfilteredGeneList;  // full set before filtering
     QVector<DESeq2Result> m_deseq2Results;
+    QVector<DESeq2Result> m_unfilteredDeseq2;
     int m_currentIndex = -1;
 
     void setupUI();
     void updateNavigation();
     void onSearchTextChanged(const QString& text);
     void onSortChanged(int index);
+    void onFilterChanged();
     void applySorting();
+    void applyFilters();
 };
 
 }  // namespace deepn

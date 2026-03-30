@@ -7,6 +7,7 @@
 
 #include <data_structures.h>
 #include <gene_annotation_db.h>
+#include <loading_overlay.h>
 #include <sqlite_junction_loader.h>
 
 class QCheckBox;
@@ -42,8 +43,14 @@ public:
     void loadWorkingDirectory(const QString& workdir);
     void loadDataset(const QString& dbPath);
     void loadGeneReference(const QString& fastaPath);
+    void loadGeneReferenceSqlite(const QString& sqlitePath);
     void loadDESeq2Results(const QString& csvPath);
     void displayGene(const QString& gene);
+
+    deepn::LoadingOverlay* loadingOverlay() const { return m_loadingOverlay; }
+    deepn::GeneAnnotationDB& annotationDB() { return m_annotationDB; }
+    void setDESeq2Results(const QVector<deepn::DESeq2Result>& results) { m_deseq2Results = results; }
+    void refreshGeneSelector();
 
 private slots:
     void onGeneSelected(const QString& gene);
@@ -93,10 +100,12 @@ private:
     QCheckBox* m_compareCheck = nullptr;
     QLabel* m_secondaryLabel = nullptr;
     QProgressBar* m_batchProgress = nullptr;
+    deepn::LoadingOverlay* m_loadingOverlay = nullptr;
 
     // State
     QStringList m_datasetPaths;
     QString m_workdir;
+    QString m_currentGene;
     QVector<deepn::DESeq2Result> m_deseq2Results;
     bool m_collapseByPosition = false;
     bool m_inFrameOnly = false;
@@ -111,7 +120,6 @@ private:
     void populateDatasetCombo();
     void applyFilters(const deepn::GeneJunctionProfile& profile,
                       QVector<deepn::JunctionSite>& filtered) const;
-    QVector<deepn::DESeq2Result> parseDESeq2CSV(const QString& path) const;
 };
 
 #endif // MAINWINDOW_H

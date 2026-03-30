@@ -3,15 +3,53 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QFileDialog>
+#include <QMessageBox>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSqlDatabase>
+#include <QSqlQuery>
 #include <QStandardPaths>
 #include <QSysInfo>
 #include <QUuid>
 
 #include "darkpaint.h"
 #include "ui_mainwindow.h"
+
+namespace {
+// Check if a SQLite database contains specific tables
+bool sqliteHasTables(const QString& dbPath, const QStringList& requiredTables) {
+    QString connName = "probe_" + QUuid::createUuid().toString(QUuid::Id128);
+    bool ok = false;
+    {
+        QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connName);
+        db.setDatabaseName(dbPath);
+        db.setConnectOptions("QSQLITE_OPEN_READONLY");
+        if (db.open()) {
+            int found = 0;
+            for (const QString& table : requiredTables) {
+                QSqlQuery q(db);
+                if (q.exec(QString("SELECT 1 FROM sqlite_master WHERE type='table' AND name='%1'").arg(table))) {
+                    if (q.next()) found++;
+                }
+            }
+            ok = (found == requiredTables.size());
+            db.close();
+        }
+    }
+    QSqlDatabase::removeDatabase(connName);
+    return ok;
+}
+
+// Count how many SQLite files in a list contain the required tables
+int countValidSqliteFiles(const QStringList& files, const QStringList& requiredTables) {
+    int count = 0;
+    for (const QString& f : files) {
+        if (sqliteHasTables(f, requiredTables)) count++;
+    }
+    return count;
+}
+}  // namespace
 
 QMap<QString, QStringList> SUBDIR_FILES = {
     {"fastq", {"*.fastq.gz", "*.fastq"}},
@@ -28,6 +66,8 @@ MainWindow::MainWindow(QWidget* parent)
           &process, &QProcess::kill);
   QObject::connect(&watcher, &QFileSystemWatcher::directoryChanged, this,
                    &MainWindow::gatherFilesToggleButtons);
+  connect(&process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+          this, &MainWindow::onSubprocessFinished);
   loadDatabase();
 }
 
@@ -51,36 +91,20 @@ void MainWindow::gatherFilesToggleButtons() {
     QDir sub(parentDir.absoluteFilePath(subDirName));
     gatherFiles(sub, subDirName);
   }
-  if (files["fastq"].length() > 0) {
-    ui->junction_dice_btn->setEnabled(true);
-  } else {
-    ui->junction_dice_btn->setEnabled(false);
-  }
 
-  if (files["mapped_files"].length() > 0) {
-    ui->gene_count_btn->setEnabled(true);
-  } else {
-    ui->gene_count_btn->setEnabled(false);
-  }
+  // All analysis buttons require a reference genome to be selected
+  bool hasGenomeRef = (ui->db_list_wgt->currentItem() != nullptr);
 
-  if (files["analyzed_files"].length() > 0) {
-    ui->query_blast_btn->setEnabled(true);
-  } else {
-    ui->query_blast_btn->setEnabled(false);
-  }
+  ui->junction_dice_btn->setEnabled(hasGenomeRef && files["fastq"].length() > 0);
+  ui->gene_count_btn->setEnabled(hasGenomeRef && files["mapped_files"].length() > 0);
 
-  if (files["analyzed_files"].length() > 0) {
-    ui->read_depth_btn->setEnabled(true);
-  } else {
-    ui->read_depth_btn->setEnabled(false);
-  }
+  // MultiQuery++ and ReadDepth++ need SQLite files with a 'maps' table
+  int withMaps = countValidSqliteFiles(files["analyzed_files"], {"maps"});
+  ui->query_blast_btn->setEnabled(hasGenomeRef && withMaps > 0);
+  ui->read_depth_btn->setEnabled(hasGenomeRef && withMaps > 0);
 
-  if (files["gene_count_summary"].length() >= 2 ||
-      files["analyzed_files"].length() >= 2) {
-    ui->deseq2_btn->setEnabled(true);
-  } else {
-    ui->deseq2_btn->setEnabled(false);
-  }
+  // StatMaker++ needs >=2 SQLite files with 'maps' table
+  ui->deseq2_btn->setEnabled(hasGenomeRef && withMaps >= 2);
 }
 
 void MainWindow::monitorSubDirs(QDir parentDir) {
@@ -91,7 +115,11 @@ void MainWindow::monitorSubDirs(QDir parentDir) {
 }
 
 void MainWindow::createSubDirs() {
-  foreach (QString subdir, SUBDIR_FILES.keys()) {
+  // Only create input directories; output directories (gene_count_summary,
+  // query_files, junction_diced_fasta, mapped_files, analyzed_files)
+  // are created by the pipeline modules when they produce output.
+  static const QStringList inputDirs = {"fastq"};
+  for (const QString& subdir : inputDirs) {
     QDir sub(parentDir.absoluteFilePath(subdir));
     if (!sub.exists()) {
       ui->status_text->appendPlainText(
@@ -160,12 +188,9 @@ void MainWindow::loadDatabase() {
     item->setData(Qt::UserRole, map);
     item->setText(map["display_name"].toString());
     ui->db_list_wgt->addItem(item);
-    // Iterate over the key-value pairs in the map
-    if (sel) {
-      ui->db_list_wgt->setCurrentItem(item);
-      sel = false;
-    }
   }
+  // No genome selected by default — user must choose before analysis
+  ui->db_list_wgt->setCurrentRow(-1);
   QApplication::processEvents();
 }
 
@@ -191,19 +216,24 @@ void MainWindow::on_gene_count_btn_clicked() {
     gene_count_path =
         appendPath(application_directory.path(), "gene_count/GeneCount++");
   }
-  ui->status_text->appendPlainText(gene_count_path);
   QStringList arguments;
   arguments << files["mapped_files"];
-  process.setProcessChannelMode(QProcess::ForwardedChannels);
-  process.start(QDir::toNativeSeparators(gene_count_path), arguments);
-  process.waitForFinished(-1);
+  launchSubprocess(gene_count_path, arguments, "GeneCount++");
 }
 
 void MainWindow::on_db_list_wgt_currentItemChanged(QListWidgetItem* current,
                                                    QListWidgetItem* previous) {
+  Q_UNUSED(previous)
+  if (!current) {
+    ui->junction_sequence_txt->clear();
+    ui->database_path->clear();
+    gatherFilesToggleButtons();
+    return;
+  }
   QMap<QString, QVariant> data = current->data(Qt::UserRole).toMap();
   ui->junction_sequence_txt->setText(data["junction_sequence"].toString());
   ui->database_path->setText(data["map_db"].toString());
+  gatherFilesToggleButtons();
 }
 
 void MainWindow::on_select_folder_btn_clicked() {
@@ -232,14 +262,11 @@ void MainWindow::on_junction_dice_btn_clicked() {
     junction_dice_path = appendPath(application_directory.path(),
                                     "junction_dice/JunctionDice++");
   }
-  ui->status_text->appendPlainText(junction_dice_path);
   QStringList arguments;
   arguments << files["fastq"] << ui->junction_sequence_txt->text()
             << ui->database_path->text();
   qDebug() << arguments;
-  process.setProcessChannelMode(QProcess::ForwardedChannels);
-  process.start(QDir::toNativeSeparators(junction_dice_path), arguments);
-  process.waitForFinished(-1);
+  launchSubprocess(junction_dice_path, arguments, "JunctionDice++");
 }
 
 // void MainWindow::on_junction_make_btn_clicked() {
@@ -284,12 +311,46 @@ void MainWindow::on_deseq2_btn_clicked() {
     deseq2_path =
         appendPath(application_directory.path(), "deseq2/StatMaker++");
   }
-  ui->status_text->appendPlainText(deseq2_path);
   QStringList arguments;
   arguments << "--workdir" << parentDir.absolutePath();
-  process.setProcessChannelMode(QProcess::ForwardedChannels);
-  process.start(QDir::toNativeSeparators(deseq2_path), arguments);
-  process.waitForFinished(-1);
+  launchSubprocess(deseq2_path, arguments, "StatMaker++");
+}
+
+QString MainWindow::resolveGeneRefPath() const {
+  // Resolve the gene reference database filename to a full path.
+  // Prefer the pre-built .sqlite annotation DB; fall back to FASTA.
+  QListWidgetItem* currentDb = ui->db_list_wgt->currentItem();
+  if (!currentDb) return {};
+
+  QString dbName = currentDb->data(Qt::UserRole).toMap()["map_db"].toString();
+  if (dbName.isEmpty()) return {};
+
+  // Build list of directories to search for gene reference data.
+  // On macOS, data is bundled inside the nested JunctionDice++ app.
+  QStringList searchDirs;
+  QDir appDir(QCoreApplication::applicationDirPath());
+  if (QSysInfo::productType() == "osx" || QSysInfo::productType() == "macos") {
+    appDir.cdUp();  // Contents/MacOS -> Contents
+    // Nested child app data (primary location for bundled builds)
+    searchDirs << appDir.filePath("Resources/JunctionDice++.app/Contents/Data");
+    // Orchestrator's own Data dir
+    searchDirs << appDir.filePath("Data");
+  } else {
+    searchDirs << appDir.filePath("Data");
+  }
+  // Also try working directory
+  searchDirs << parentDir.absolutePath();
+
+  for (const QString& dir : searchDirs) {
+    // Try pre-built .sqlite first
+    QString sqlitePath = QDir(dir).filePath(dbName + ".sqlite");
+    if (QFileInfo::exists(sqlitePath)) return sqlitePath;
+    // Try FASTA
+    QString fastaPath = QDir(dir).filePath(dbName);
+    if (QFileInfo::exists(fastaPath)) return fastaPath;
+  }
+
+  return dbName;  // Return as-is, let the child app handle the error
 }
 
 void MainWindow::on_query_blast_btn_clicked() {
@@ -309,19 +370,14 @@ void MainWindow::on_query_blast_btn_clicked() {
     query_path =
         appendPath(application_directory.path(), "query/MultiQuery++");
   }
-  ui->status_text->appendPlainText(query_path);
   QStringList arguments;
   arguments << "--workdir" << parentDir.absolutePath()
             << "--datasets" << files["analyzed_files"].join(",");
-  // Pass gene reference database path if available
-  QListWidgetItem* currentDb = ui->db_list_wgt->currentItem();
-  if (currentDb) {
-    QMap<QString, QVariant> dbData = currentDb->data(Qt::UserRole).toMap();
-    arguments << "--generef" << dbData["map_db"].toString();
+  QString geneRef = resolveGeneRefPath();
+  if (!geneRef.isEmpty()) {
+    arguments << "--generef" << geneRef;
   }
-  process.setProcessChannelMode(QProcess::ForwardedChannels);
-  process.start(QDir::toNativeSeparators(query_path), arguments);
-  process.waitForFinished(-1);
+  launchSubprocess(query_path, arguments, "MultiQuery++");
 }
 
 void MainWindow::on_read_depth_btn_clicked() {
@@ -341,18 +397,67 @@ void MainWindow::on_read_depth_btn_clicked() {
     depth_path =
         appendPath(application_directory.path(), "read_depth/ReadDepth++");
   }
-  ui->status_text->appendPlainText(depth_path);
   QStringList arguments;
   arguments << "--workdir" << parentDir.absolutePath()
             << "--datasets" << files["analyzed_files"].join(",");
-  QListWidgetItem* currentDb = ui->db_list_wgt->currentItem();
-  if (currentDb) {
-    QMap<QString, QVariant> dbData = currentDb->data(Qt::UserRole).toMap();
-    arguments << "--generef" << dbData["map_db"].toString();
+  QString geneRef = resolveGeneRefPath();
+  if (!geneRef.isEmpty()) {
+    arguments << "--generef" << geneRef;
   }
-  process.setProcessChannelMode(QProcess::ForwardedChannels);
-  process.start(QDir::toNativeSeparators(depth_path), arguments);
-  process.waitForFinished(-1);
+  launchSubprocess(depth_path, arguments, "ReadDepth++");
 }
 
 void MainWindow::on_actionDB_Path_triggered() {}
+
+void MainWindow::launchSubprocess(const QString& execPath, const QStringList& arguments,
+                                   const QString& displayName) {
+  if (process.state() != QProcess::NotRunning) {
+    QMessageBox::warning(this, "Process Running",
+                         "Another subprocess is already running. Please wait for it to finish.");
+    return;
+  }
+  ui->status_text->appendPlainText(execPath + " " + arguments.join(" "));
+  showOverlay(QString("Running %1...").arg(displayName));
+  process.setProcessChannelMode(QProcess::ForwardedChannels);
+  process.start(QDir::toNativeSeparators(execPath), arguments);
+}
+
+void MainWindow::onSubprocessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
+  Q_UNUSED(exitCode)
+  Q_UNUSED(exitStatus)
+  hideOverlay();
+  gatherFilesToggleButtons();
+}
+
+void MainWindow::showOverlay(const QString& message) {
+  if (!m_overlay) {
+    m_overlay = new QWidget(this);
+    m_overlay->setStyleSheet("background-color: rgba(0, 0, 0, 230);");
+    m_overlay->setAttribute(Qt::WA_StyledBackground, true);
+    m_overlay->setAutoFillBackground(true);
+
+    m_overlayLabel = new QLabel(m_overlay);
+    m_overlayLabel->setAlignment(Qt::AlignCenter);
+    m_overlayLabel->setStyleSheet(
+        "color: white; font-size: 18px; font-weight: bold; background: transparent;");
+  }
+  m_overlayLabel->setText(message);
+  m_overlay->setGeometry(0, 0, width(), height());
+  m_overlayLabel->setGeometry(0, 0, width(), height());
+  m_overlay->raise();
+  m_overlay->show();
+}
+
+void MainWindow::hideOverlay() {
+  if (m_overlay) {
+    m_overlay->hide();
+  }
+}
+
+void MainWindow::resizeEvent(QResizeEvent* event) {
+  QMainWindow::resizeEvent(event);
+  if (m_overlay && m_overlay->isVisible()) {
+    m_overlay->setGeometry(0, 0, width(), height());
+    m_overlayLabel->setGeometry(0, 0, width(), height());
+  }
+}

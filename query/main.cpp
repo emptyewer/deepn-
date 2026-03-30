@@ -1,5 +1,8 @@
 #include "mainwindow.h"
 
+#include <loading_overlay.h>
+#include <startup_loader.h>
+
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
@@ -16,64 +19,66 @@ int main(int argc, char *argv[])
     parser.addHelpOption();
     parser.addVersionOption();
 
-    QCommandLineOption workdirOpt(
-        "workdir",
-        "Working directory containing experiment data.",
-        "path");
+    QCommandLineOption workdirOpt("workdir", "Working directory.", "path");
+    QCommandLineOption datasetsOpt("datasets", "Comma-separated SQLite paths.", "paths");
+    QCommandLineOption generefOpt("generef", "Gene reference file (.sqlite or .fasta).", "path");
+    QCommandLineOption resultsOpt("results", "DESeq2 results CSV.", "path");
+    QCommandLineOption geneOpt("gene", "Initial gene to display.", "name");
     parser.addOption(workdirOpt);
-
-    QCommandLineOption datasetsOpt(
-        "datasets",
-        "Comma-separated SQLite database paths.",
-        "paths");
     parser.addOption(datasetsOpt);
-
-    QCommandLineOption generefOpt(
-        "generef",
-        "Path to FASTA gene reference file.",
-        "path");
     parser.addOption(generefOpt);
-
-    QCommandLineOption resultsOpt(
-        "results",
-        "DESeq2 results CSV path.",
-        "path");
     parser.addOption(resultsOpt);
-
-    QCommandLineOption geneOpt(
-        "gene",
-        "Initial gene to display.",
-        "name");
     parser.addOption(geneOpt);
-
     parser.process(app);
 
     MainWindow w;
     w.show();
 
-    // Apply CLI arguments
-    if (parser.isSet(generefOpt)) {
-        w.loadGeneReference(parser.value(generefOpt));
-    }
+    auto* overlay = w.loadingOverlay();
+    overlay->show("Loading MultiQuery++...");
 
-    if (parser.isSet(resultsOpt)) {
-        w.loadDESeq2Results(parser.value(resultsOpt));
-    }
-
-    if (parser.isSet(workdirOpt)) {
-        w.loadWorkingDirectory(parser.value(workdirOpt));
-    }
-
+    // Configure background loader
+    deepn::StartupLoader loader;
+    deepn::StartupLoader::Config config;
+    config.generefPath = parser.value(generefOpt);
+    config.workdir = parser.value(workdirOpt);
+    config.resultsCSV = parser.value(resultsOpt);
+    config.geneName = parser.value(geneOpt);
     if (parser.isSet(datasetsOpt)) {
-        const QStringList paths = parser.value(datasetsOpt).split(',', Qt::SkipEmptyParts);
-        for (const QString& path : paths) {
-            w.loadDataset(path.trimmed());
-        }
+        config.datasetPaths = parser.value(datasetsOpt).split(',', Qt::SkipEmptyParts);
     }
 
-    if (parser.isSet(geneOpt)) {
-        w.displayGene(parser.value(geneOpt));
-    }
+    // Stream messages to overlay
+    QObject::connect(&loader, &deepn::StartupLoader::message,
+                     overlay, &deepn::LoadingOverlay::addMessage);
+
+    // When loading finishes, apply results to the window on the main thread
+    QObject::connect(&loader, &deepn::StartupLoader::finished, &w, [&]() {
+        // Load annotation DB on main thread (fast — metadata only, no sequences)
+        if (!config.generefPath.isEmpty()) {
+            if (config.generefPath.endsWith(".sqlite", Qt::CaseInsensitive)) {
+                w.loadGeneReferenceSqlite(config.generefPath);
+            } else {
+                w.loadGeneReference(config.generefPath);
+            }
+        }
+
+        w.setDESeq2Results(loader.deseq2Results());
+
+        for (const QString& path : loader.discoveredDatasets()) {
+            w.loadDataset(path);
+        }
+
+        w.refreshGeneSelector();
+
+        if (!loader.initialGene().isEmpty()) {
+            w.displayGene(loader.initialGene());
+        }
+
+        overlay->hide();
+    });
+
+    loader.start(config);
 
     return app.exec();
 }

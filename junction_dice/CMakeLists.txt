@@ -18,6 +18,8 @@ qt_add_executable(junction_dice
 set_target_properties(junction_dice PROPERTIES
     OUTPUT_NAME "JunctionDice++"
     MACOSX_BUNDLE_ICON_FILE junction_dice.icns
+    MACOSX_BUNDLE_BUNDLE_NAME "JunctionDice++"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "edu.uiowa.deepn.junctiondice"
 )
 
 if(WIN32)

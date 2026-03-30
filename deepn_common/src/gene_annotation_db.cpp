@@ -410,4 +410,142 @@ QString GeneAnnotationDB::lastError() const
     return m_error;
 }
 
+bool GeneAnnotationDB::loadFromSqlite(const QString& sqlitePath)
+{
+    m_error.clear();
+    m_byRefseq.clear();
+    m_byGeneName.clear();
+    m_sqlitePath.clear();
+
+    QFileInfo fi(sqlitePath);
+    if (!fi.exists()) {
+        m_error = QStringLiteral("SQLite annotation file not found: %1").arg(sqlitePath);
+        qDebug() << m_error;
+        return false;
+    }
+
+    QString connName = "annot_" + QUuid::createUuid().toString(QUuid::Id128);
+    {
+        QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connName);
+        db.setDatabaseName(sqlitePath);
+        db.setConnectOptions("QSQLITE_OPEN_READONLY");
+        if (!db.open()) {
+            m_error = QStringLiteral("Cannot open annotation DB: %1").arg(db.lastError().text());
+            qDebug() << m_error;
+            return false;
+        }
+
+        QSqlQuery q(db);
+        q.exec("PRAGMA cache_size = -2048");
+        q.exec("PRAGMA mmap_size = 0");
+
+        // Load only small metadata columns — skip sequence and length(sequence)
+        // which force SQLite to read the entire 169MB+ of sequence data.
+        // mRNALength and sequence are fetched per-gene on demand.
+        if (!q.exec("SELECT name, nm_number, start, stop FROM gene")) {
+            m_error = QStringLiteral("Query failed: %1").arg(q.lastError().text());
+            qDebug() << m_error;
+            db.close();
+            QSqlDatabase::removeDatabase(connName);
+            return false;
+        }
+
+        while (q.next()) {
+            GeneAnnotation ann;
+            ann.geneName = q.value(0).toString().trimmed();
+            ann.refseq = q.value(1).toString().trimmed();
+            ann.orfStart = q.value(2).toInt();
+            ann.orfEnd = q.value(3).toInt();
+            ann.mRNALength = 0;  // loaded on demand via populateGeneDetails()
+
+            if (!ann.refseq.isEmpty()) {
+                m_byRefseq.insert(ann.refseq, ann);
+            }
+            if (!ann.geneName.isEmpty()) {
+                m_byGeneName.insert(ann.geneName, ann);
+            }
+        }
+
+        q.clear();
+        db.close();
+    }
+    QSqlDatabase::removeDatabase(connName);
+
+    m_sqlitePath = sqlitePath;
+    qDebug() << "Loaded" << m_byRefseq.size() << "gene annotations from" << sqlitePath;
+    return m_byRefseq.size() > 0;
+}
+
+QString GeneAnnotationDB::sequenceForRefseq(const QString& refseq) const
+{
+    if (m_sqlitePath.isEmpty()) {
+        // FASTA-loaded path: sequence is already in memory
+        auto it = m_byRefseq.find(refseq);
+        if (it != m_byRefseq.end()) {
+            return it->sequence;
+        }
+        return {};
+    }
+
+    // SQLite path: query on demand
+    QString result;
+    QString connName = "seq_" + QUuid::createUuid().toString(QUuid::Id128);
+    {
+        QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connName);
+        db.setDatabaseName(m_sqlitePath);
+        db.setConnectOptions("QSQLITE_OPEN_READONLY");
+        if (db.open()) {
+            QSqlQuery q(db);
+            q.prepare("SELECT sequence FROM gene WHERE nm_number = :nm LIMIT 1");
+            q.bindValue(":nm", refseq);
+            if (q.exec() && q.next()) {
+                result = q.value(0).toString();
+            }
+            q.clear();
+            db.close();
+        }
+    }
+    QSqlDatabase::removeDatabase(connName);
+    return result;
+}
+
+void GeneAnnotationDB::populateGeneDetails(GeneAnnotation& annotation) const
+{
+    if (annotation.refseq.isEmpty()) return;
+
+    // Already populated
+    if (annotation.mRNALength > 0 && !annotation.sequence.isEmpty()) return;
+
+    if (m_sqlitePath.isEmpty()) {
+        // FASTA path: details already in memory
+        auto it = m_byRefseq.find(annotation.refseq);
+        if (it != m_byRefseq.end()) {
+            if (annotation.mRNALength <= 0) annotation.mRNALength = it->mRNALength;
+            if (annotation.sequence.isEmpty()) annotation.sequence = it->sequence;
+        }
+        return;
+    }
+
+    // SQLite path: single query for this gene
+    QString connName = "det_" + QUuid::createUuid().toString(QUuid::Id128);
+    {
+        QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connName);
+        db.setDatabaseName(m_sqlitePath);
+        db.setConnectOptions("QSQLITE_OPEN_READONLY");
+        if (db.open()) {
+            QSqlQuery q(db);
+            q.prepare("SELECT sequence FROM gene WHERE nm_number = :nm LIMIT 1");
+            q.bindValue(":nm", annotation.refseq);
+            if (q.exec() && q.next()) {
+                QString seq = q.value(0).toString();
+                annotation.sequence = seq;
+                annotation.mRNALength = seq.length();
+            }
+            q.clear();
+            db.close();
+        }
+    }
+    QSqlDatabase::removeDatabase(connName);
+}
+
 }  // namespace deepn

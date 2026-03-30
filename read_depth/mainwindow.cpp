@@ -3,6 +3,10 @@
 
 #include "batch_runner.h"
 
+#include <sqlite_junction_loader.h>
+#include <csv_utils.h>
+#include <export_dialog.h>
+
 #include <QApplication>
 #include <QButtonGroup>
 #include <QDebug>
@@ -15,10 +19,13 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QProgressDialog>
+#include <QSet>
 #include <QStatusBar>
 #include <QTextStream>
 #include <QToolBar>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -32,6 +39,8 @@ MainWindow::MainWindow(QWidget* parent)
     setupMenuBar();
     setupStatusBar();
     connectSignals();
+
+    m_loadingOverlay = new deepn::LoadingOverlay(this);
 }
 
 MainWindow::~MainWindow()
@@ -208,6 +217,10 @@ void MainWindow::setupUI()
     bottomBar->addWidget(exportCSVBtn);
     connect(exportCSVBtn, &QPushButton::clicked, this, &MainWindow::onExportCSV);
 
+    auto* exportBoundaryBtn = new QPushButton("Export Boundary", this);
+    bottomBar->addWidget(exportBoundaryBtn);
+    connect(exportBoundaryBtn, &QPushButton::clicked, this, &MainWindow::onExportBoundaryCSV);
+
     auto* exportFigBtn = new QPushButton("Export Figure", this);
     bottomBar->addWidget(exportFigBtn);
     connect(exportFigBtn, &QPushButton::clicked, this, &MainWindow::onExportFigure);
@@ -276,6 +289,7 @@ void MainWindow::setupMenuBar()
     fileMenu->addSeparator();
 
     fileMenu->addAction("Export &CSV...", this, &MainWindow::onExportCSV);
+    fileMenu->addAction("Export &Boundary CSV...", this, &MainWindow::onExportBoundaryCSV);
     fileMenu->addAction("Export &Figure...", this, &MainWindow::onExportFigure);
 
     fileMenu->addSeparator();
@@ -379,11 +393,9 @@ void MainWindow::loadDataset(const QString& dbPath)
         populateDatasetCombos();
     }
 
-    // If this is the first dataset, select it
     if (m_datasetPaths.size() == 1) {
         m_datasetCombo->setCurrentIndex(0);
     }
-
     statusBar()->showMessage(QStringLiteral("Loaded dataset: %1")
                                  .arg(QFileInfo(dbPath).fileName()), 3000);
 }
@@ -401,23 +413,41 @@ void MainWindow::loadGeneReference(const QString& fastaPath)
         return;
     }
 
-    QStringList genes = m_annotationDB.allGeneNames();
-    m_geneSelector->setGeneList(genes);
+    refreshGeneSelector();
 
     statusBar()->showMessage(QStringLiteral("Loaded %1 genes from reference")
-                                 .arg(genes.size()), 3000);
+                                 .arg(m_annotationDB.count()), 3000);
+}
+
+void MainWindow::loadGeneReferenceSqlite(const QString& sqlitePath)
+{
+    statusBar()->showMessage("Loading gene reference...");
+    QApplication::processEvents();
+
+    if (!m_annotationDB.loadFromSqlite(sqlitePath)) {
+        QMessageBox::warning(this, "Error",
+                             QStringLiteral("Failed to load gene reference SQLite:\n%1")
+                                 .arg(m_annotationDB.lastError()));
+        statusBar()->showMessage("Gene reference load failed", 3000);
+        return;
+    }
+
+    refreshGeneSelector();
+
+    statusBar()->showMessage(QStringLiteral("Loaded %1 genes from reference")
+                                 .arg(m_annotationDB.count()), 3000);
 }
 
 void MainWindow::loadDESeq2Results(const QString& csvPath)
 {
-    m_deseq2Results = parseDESeq2CSV(csvPath);
+    m_deseq2Results = deepn::parseDESeq2CSV(csvPath);
     if (m_deseq2Results.isEmpty()) {
         QMessageBox::warning(this, "Error",
                              "Failed to parse DESeq2 results or file is empty.");
         return;
     }
 
-    m_geneSelector->setDESeq2Results(m_deseq2Results);
+    refreshGeneSelector();
 
     statusBar()->showMessage(QStringLiteral("Loaded %1 DESeq2 results")
                                  .arg(m_deseq2Results.size()), 3000);
@@ -443,7 +473,12 @@ void MainWindow::loadJunctionData(const QString& csvPath)
 
 void MainWindow::displayGene(const QString& gene)
 {
-    m_geneSelector->selectGene(gene);
+    const QString selectionKey = deepn::selectionKeyFor(gene, m_annotationDB);
+    if (!m_geneSelector->selectGene(selectionKey) &&
+        !m_geneSelector->selectGene(gene.trimmed())) {
+        m_currentGene = gene.trimmed();
+        refreshDisplay();
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -564,6 +599,42 @@ void MainWindow::onExportCSV()
     }
 }
 
+void MainWindow::onExportBoundaryCSV()
+{
+    if (m_primaryBoundary.position <= 0) {
+        QMessageBox::information(this, "Export", "No boundary data to export. Load a gene first.");
+        return;
+    }
+
+    QString defaultName = QStringLiteral("%1_boundary.csv").arg(m_currentGene);
+    QString filePath = QFileDialog::getSaveFileName(
+        this, "Export Boundary CSV",
+        m_workdir.isEmpty() ? defaultName : m_workdir + "/" + defaultName,
+        "CSV Files (*.csv);;All Files (*)");
+
+    if (filePath.isEmpty()) return;
+
+    // Build insert extent from current boundary detector state
+    deepn::InsertExtent extent;
+    extent.threePrimeBoundary = m_primaryBoundary.position;
+    extent.insertLength = extent.threePrimeBoundary - extent.fivePrimeJunction;
+
+    deepn::GeneAnnotation annotation = m_annotationDB.findByGeneName(m_currentGene);
+    if (!annotation.isValid())
+        annotation = m_annotationDB.findByRefseq(m_currentGene);
+
+    if (deepn::ExportEngine::exportBoundaryCSV(filePath,
+            annotation.isValid() ? annotation.geneName : m_currentGene,
+            annotation.isValid() ? annotation.refseq : QString(),
+            m_primaryBoundary, extent)) {
+        statusBar()->showMessage(QStringLiteral("Exported boundary to %1").arg(filePath), 3000);
+    } else {
+        QMessageBox::warning(this, "Export Error",
+                             QStringLiteral("Failed to export boundary CSV:\n%1")
+                                 .arg(deepn::ExportEngine::lastError()));
+    }
+}
+
 void MainWindow::onExportFigure()
 {
     if (m_primaryProfile.points.isEmpty()) {
@@ -571,29 +642,33 @@ void MainWindow::onExportFigure()
         return;
     }
 
-    QString defaultName = QStringLiteral("%1_depth").arg(m_currentGene);
+    deepn::ExportDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted) return;
+
+    auto es = dlg.settings();
+    QString defaultName = QStringLiteral("%1_depth%2")
+                              .arg(m_currentGene)
+                              .arg(es.defaultExtension());
     QString filePath = QFileDialog::getSaveFileName(
         this, "Export Figure",
         m_workdir.isEmpty() ? defaultName : m_workdir + "/" + defaultName,
-        "SVG (*.svg);;PDF (*.pdf);;PNG (*.png);;All Files (*)");
+        es.filter() + ";;All Files (*)");
 
     if (filePath.isEmpty()) return;
 
-    QSize exportSize(800, 400);
+    QSize exportSize(es.width, es.height);
     bool ok = false;
 
-    if (filePath.endsWith(".svg", Qt::CaseInsensitive)) {
+    switch (es.format) {
+    case deepn::ExportSettings::SVG:
         ok = deepn::ExportEngine::exportFigureSVG(filePath, m_primaryPlot, exportSize);
-    } else if (filePath.endsWith(".pdf", Qt::CaseInsensitive)) {
+        break;
+    case deepn::ExportSettings::PDF:
         ok = deepn::ExportEngine::exportFigurePDF(filePath, m_primaryPlot, exportSize);
-    } else if (filePath.endsWith(".png", Qt::CaseInsensitive)) {
-        ok = deepn::ExportEngine::exportFigurePNG(filePath, m_primaryPlot, exportSize, 300);
-    } else {
-        // Default to PNG
-        if (!filePath.endsWith(".png", Qt::CaseInsensitive)) {
-            filePath += ".png";
-        }
-        ok = deepn::ExportEngine::exportFigurePNG(filePath, m_primaryPlot, exportSize, 300);
+        break;
+    case deepn::ExportSettings::PNG:
+        ok = deepn::ExportEngine::exportFigurePNG(filePath, m_primaryPlot, exportSize, es.dpi);
+        break;
     }
 
     if (ok) {
@@ -706,7 +781,6 @@ void MainWindow::refreshDisplay()
     // Get gene annotation
     deepn::GeneAnnotation annotation = m_annotationDB.findByGeneName(m_currentGene);
     if (!annotation.isValid()) {
-        // Try by refseq
         annotation = m_annotationDB.findByRefseq(m_currentGene);
     }
     if (!annotation.isValid()) {
@@ -714,6 +788,8 @@ void MainWindow::refreshDisplay()
                                     .arg(m_currentGene));
         return;
     }
+    // Lazy-load mRNALength + sequence for this gene
+    m_annotationDB.populateGeneDetails(annotation);
 
     statusBar()->showMessage(QStringLiteral("Calculating depth profile for %1...")
                                  .arg(m_currentGene));
@@ -856,10 +932,12 @@ void MainWindow::autoDiscoverFiles()
     QDir dir(m_workdir);
 
     // Discover SQLite databases in analyzed_files/
+    // Add SQLite files by extension — skip per-file DB probes during discovery.
     QDir analyzedDir(dir.filePath("analyzed_files"));
     if (analyzedDir.exists()) {
         QStringList sqliteFiles = analyzedDir.entryList({"*.sqlite", "*.db"}, QDir::Files);
         for (const QString& f : sqliteFiles) {
+            if (f.compare("statmaker_results.sqlite", Qt::CaseInsensitive) == 0) continue;
             QString fullPath = analyzedDir.filePath(f);
             if (!m_datasetPaths.contains(fullPath)) {
                 m_datasetPaths.append(fullPath);
@@ -867,26 +945,19 @@ void MainWindow::autoDiscoverFiles()
         }
     }
 
-    // Also check for sqlite files directly in workdir
-    QStringList rootSqlite = dir.entryList({"*.sqlite", "*.db"}, QDir::Files);
-    for (const QString& f : rootSqlite) {
-        QString fullPath = dir.filePath(f);
-        if (!m_datasetPaths.contains(fullPath)) {
-            m_datasetPaths.append(fullPath);
-        }
-    }
-
     populateDatasetCombos();
 
-    // Discover gene reference FASTA files in data/ or gene_dictionary/
-    QStringList refDirs = {"data", "gene_dictionary", "data/gene_dictionary"};
-    for (const QString& refDirName : refDirs) {
-        QDir refDir(dir.filePath(refDirName));
-        if (refDir.exists()) {
-            QStringList fastaFiles = refDir.entryList({"*.fa", "*.fasta", "*.fna"}, QDir::Files);
-            if (!fastaFiles.isEmpty()) {
-                loadGeneReference(refDir.filePath(fastaFiles.first()));
-                break;
+    // Discover gene reference FASTA — only if not already loaded via --generef
+    if (m_annotationDB.count() == 0) {
+        QStringList refDirs = {"data", "gene_dictionary", "data/gene_dictionary"};
+        for (const QString& refDirName : refDirs) {
+            QDir refDir(dir.filePath(refDirName));
+            if (refDir.exists()) {
+                QStringList fastaFiles = refDir.entryList({"*.fa", "*.fasta", "*.fna"}, QDir::Files);
+                if (!fastaFiles.isEmpty()) {
+                    loadGeneReference(refDir.filePath(fastaFiles.first()));
+                    break;
+                }
             }
         }
     }
@@ -906,16 +977,25 @@ void MainWindow::autoDiscoverFiles()
 
     // Discover junction data from MultiQuery++
     QStringList junctionDirs = {".", "multiquery_results"};
+    bool loadedJunctionData = false;
     for (const QString& jncDirName : junctionDirs) {
         QDir jncDir(dir.filePath(jncDirName));
         if (jncDir.exists()) {
-            QStringList jncFiles = jncDir.entryList({"*junction*.csv", "*collapsed*.csv"}, QDir::Files);
-            if (!jncFiles.isEmpty()) {
-                loadJunctionData(jncDir.filePath(jncFiles.first()));
-                break;
+            const QStringList patterns = {"*junction*.csv", "*collapsed*.csv"};
+            for (const QString& pattern : patterns) {
+                QStringList jncFiles = jncDir.entryList({pattern}, QDir::Files, QDir::Name);
+                if (!jncFiles.isEmpty()) {
+                    loadJunctionData(jncDir.filePath(jncFiles.first()));
+                    loadedJunctionData = true;
+                    break;
+                }
             }
         }
+        if (loadedJunctionData) {
+            break;
+        }
     }
+    refreshGeneSelector();
 }
 
 void MainWindow::populateDatasetCombos()
@@ -959,94 +1039,6 @@ void MainWindow::populateDatasetCombos()
 // CSV Parsing
 // ---------------------------------------------------------------------------
 
-QVector<deepn::DESeq2Result> MainWindow::parseDESeq2CSV(const QString& csvPath)
-{
-    QVector<deepn::DESeq2Result> results;
-
-    QFile file(csvPath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "Cannot open DESeq2 CSV:" << csvPath;
-        return results;
-    }
-
-    QTextStream in(&file);
-    QString headerLine = in.readLine();
-    if (headerLine.isEmpty()) {
-        return results;
-    }
-
-    // Parse header to find column indices
-    QStringList headers = headerLine.split(',');
-    auto findCol = [&headers](const QStringList& names) -> int {
-        for (const QString& name : names) {
-            for (int i = 0; i < headers.size(); ++i) {
-                if (headers[i].trimmed().compare(name, Qt::CaseInsensitive) == 0 ||
-                    headers[i].trimmed().replace('"', "").compare(name, Qt::CaseInsensitive) == 0) {
-                    return i;
-                }
-            }
-        }
-        return -1;
-    };
-
-    int geneCol = findCol({"gene", "Gene", "gene_name", "geneName", ""});
-    int baseMeanCol = findCol({"baseMean", "basemean", "base_mean"});
-    int l2fcCol = findCol({"log2FoldChange", "log2foldchange", "l2fc", "log2FC"});
-    int lfcSECol = findCol({"lfcSE", "lfcse", "lfc_se"});
-    int statCol = findCol({"stat", "Stat"});
-    int pvalCol = findCol({"pvalue", "pval", "p_value"});
-    int padjCol = findCol({"padj", "p_adj", "adjusted_pvalue"});
-    int enrichCol = findCol({"enrichment", "Enrichment", "direction"});
-
-    // If gene column is -1, try the first column (common for R output where
-    // the gene names are row names)
-    if (geneCol < 0) geneCol = 0;
-
-    while (!in.atEnd()) {
-        QString line = in.readLine().trimmed();
-        if (line.isEmpty()) continue;
-
-        // Handle quoted CSV fields
-        QStringList fields;
-        bool inQuotes = false;
-        QString current;
-        for (QChar ch : line) {
-            if (ch == '"') {
-                inQuotes = !inQuotes;
-            } else if (ch == ',' && !inQuotes) {
-                fields.append(current.trimmed());
-                current.clear();
-            } else {
-                current += ch;
-            }
-        }
-        fields.append(current.trimmed());
-
-        deepn::DESeq2Result r;
-        auto safeField = [&fields](int idx) -> QString {
-            if (idx >= 0 && idx < fields.size()) {
-                return fields[idx].replace('"', "").trimmed();
-            }
-            return {};
-        };
-
-        r.gene = safeField(geneCol);
-        if (r.gene.isEmpty()) continue;
-
-        if (baseMeanCol >= 0) r.baseMean = safeField(baseMeanCol).toDouble();
-        if (l2fcCol >= 0) r.log2FoldChange = safeField(l2fcCol).toDouble();
-        if (lfcSECol >= 0) r.lfcSE = safeField(lfcSECol).toDouble();
-        if (statCol >= 0) r.stat = safeField(statCol).toDouble();
-        if (pvalCol >= 0) r.pvalue = safeField(pvalCol).toDouble();
-        if (padjCol >= 0) r.padj = safeField(padjCol).toDouble();
-        if (enrichCol >= 0) r.enrichment = safeField(enrichCol);
-
-        results.append(r);
-    }
-
-    return results;
-}
-
 QMap<QString, QVector<deepn::JunctionSite>> MainWindow::parseJunctionCSV(const QString& csvPath)
 {
     QMap<QString, QVector<deepn::JunctionSite>> result;
@@ -1063,26 +1055,16 @@ QMap<QString, QVector<deepn::JunctionSite>> MainWindow::parseJunctionCSV(const Q
         return result;
     }
 
-    QStringList headers = headerLine.split(',');
-    auto findCol = [&headers](const QStringList& names) -> int {
-        for (const QString& name : names) {
-            for (int i = 0; i < headers.size(); ++i) {
-                if (headers[i].trimmed().compare(name, Qt::CaseInsensitive) == 0 ||
-                    headers[i].trimmed().replace('"', "").compare(name, Qt::CaseInsensitive) == 0) {
-                    return i;
-                }
-            }
-        }
-        return -1;
-    };
+    const QChar separator = deepn::detectSeparator(headerLine);
+    const QStringList headers = deepn::splitDelimitedLine(headerLine, separator);
 
-    int geneCol = findCol({"Gene", "gene", "gene_name"});
-    int posCol = findCol({"Position", "position", "rstart"});
-    int posEndCol = findCol({"PositionEnd", "positionEnd", "rend"});
-    int ppmCol = findCol({"PPM", "ppm", "TotalPPM"});
-    int frameCol = findCol({"Frame", "frame", "DominantFrame"});
-    int cdsCol = findCol({"CDS_Class", "cds_class", "location"});
-    int refseqCol = findCol({"RefSeq", "refseq"});
+    const int geneCol = deepn::findColumnIndex(headers, {"Gene", "gene", "gene_name"});
+    const int posCol = deepn::findColumnIndex(headers, {"Position", "position", "rstart"});
+    const int posEndCol = deepn::findColumnIndex(headers, {"PositionEnd", "positionEnd", "rend"});
+    const int ppmCol = deepn::findColumnIndex(headers, {"PPM", "ppm", "TotalPPM"});
+    const int frameCol = deepn::findColumnIndex(headers, {"Frame", "frame", "DominantFrame"});
+    const int cdsCol = deepn::findColumnIndex(headers, {"CDS_Class", "cds_class", "location"});
+    const int refseqCol = deepn::findColumnIndex(headers, {"RefSeq", "refseq"});
 
     if (geneCol < 0 || posCol < 0) {
         qDebug() << "Junction CSV missing Gene or Position columns";
@@ -1093,28 +1075,51 @@ QMap<QString, QVector<deepn::JunctionSite>> MainWindow::parseJunctionCSV(const Q
         QString line = in.readLine().trimmed();
         if (line.isEmpty()) continue;
 
-        QStringList fields = line.split(',');
-        auto safeField = [&fields](int idx) -> QString {
-            if (idx >= 0 && idx < fields.size()) {
-                return fields[idx].trimmed().replace('"', "");
-            }
-            return {};
-        };
+        const QStringList fields = deepn::splitDelimitedLine(line, separator);
 
-        QString gene = safeField(geneCol);
+        QString gene = deepn::safeField(fields, geneCol);
         if (gene.isEmpty()) continue;
 
         deepn::JunctionSite site;
         site.geneName = gene;
-        site.position = safeField(posCol).toInt();
-        if (posEndCol >= 0) site.positionEnd = safeField(posEndCol).toInt();
-        if (ppmCol >= 0) site.ppm = safeField(ppmCol).toDouble();
-        if (frameCol >= 0) site.frame = safeField(frameCol);
-        if (cdsCol >= 0) site.cdsClass = safeField(cdsCol);
-        if (refseqCol >= 0) site.refseq = safeField(refseqCol);
+        site.position = deepn::safeField(fields, posCol).toInt();
+        if (posEndCol >= 0) site.positionEnd = deepn::safeField(fields, posEndCol).toInt();
+        if (ppmCol >= 0) site.ppm = deepn::safeField(fields, ppmCol).toDouble();
+        if (frameCol >= 0) site.frame = deepn::safeField(fields, frameCol);
+        if (cdsCol >= 0) site.cdsClass = deepn::safeField(fields, cdsCol);
+        if (refseqCol >= 0) site.refseq = deepn::safeField(fields, refseqCol);
 
         result[gene].append(site);
+        if (!site.refseq.isEmpty() && site.refseq.compare(gene, Qt::CaseInsensitive) != 0) {
+            result[site.refseq].append(site);
+        }
     }
 
     return result;
+}
+
+void MainWindow::refreshGeneSelector()
+{
+    QStringList geneList;
+    if (!m_deseq2Results.isEmpty()) {
+        m_geneSelector->setDESeq2Results(m_deseq2Results);
+        geneList.reserve(m_deseq2Results.size());
+        for (const auto& result : m_deseq2Results) {
+            geneList.append(result.gene);
+        }
+    } else if (m_annotationDB.count() > 0) {
+        geneList = m_annotationDB.allGeneNames();
+        std::sort(geneList.begin(), geneList.end(), [](const QString& a, const QString& b) {
+            return a.compare(b, Qt::CaseInsensitive) < 0;
+        });
+        m_geneSelector->setGeneList(geneList);
+    }
+
+    // Re-select current gene if one was already active
+    if (!m_currentGene.isEmpty()) {
+        QString key = deepn::selectionKeyFor(m_currentGene, m_annotationDB);
+        if (!m_geneSelector->selectGene(key)) {
+            m_geneSelector->selectGene(m_currentGene);
+        }
+    }
 }

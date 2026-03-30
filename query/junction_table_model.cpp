@@ -3,6 +3,7 @@
 #include <QColor>
 
 #include <algorithm>
+#include <cmath>
 
 using namespace deepn;
 
@@ -47,6 +48,25 @@ void JunctionTableModel::setCollapsedJunctions(const QVector<CollapsedJunction>&
     endResetModel();
 }
 
+void JunctionTableModel::setComparisonData(const QVector<JunctionSite>& secondarySites)
+{
+    beginResetModel();
+    m_secondaryPpmByPos.clear();
+    for (const auto& site : secondarySites) {
+        m_secondaryPpmByPos[site.position] += site.ppm;
+    }
+    m_hasComparison = true;
+    endResetModel();
+}
+
+void JunctionTableModel::clearComparisonData()
+{
+    beginResetModel();
+    m_secondaryPpmByPos.clear();
+    m_hasComparison = false;
+    endResetModel();
+}
+
 JunctionSite JunctionTableModel::junctionAt(int row) const
 {
     if (row < 0 || row >= m_sites.size()) return {};
@@ -62,7 +82,8 @@ int JunctionTableModel::rowCount(const QModelIndex& parent) const
 int JunctionTableModel::columnCount(const QModelIndex& parent) const
 {
     if (parent.isValid()) return 0;
-    return ColumnCount;
+    // Hide the Enrichment column when no comparison data is loaded
+    return m_hasComparison ? ColumnCount : ColumnCount - 1;
 }
 
 QVariant JunctionTableModel::data(const QModelIndex& index, int role) const
@@ -83,6 +104,18 @@ QVariant JunctionTableModel::data(const QModelIndex& index, int role) const
         case Frame:      return site.frameLabel();
         case RawCount:   return site.rawCount;
         case RefSeq:     return site.refseq;
+        case Enrichment: {
+            if (!m_hasComparison) return {};
+            double secondaryPpm = m_secondaryPpmByPos.value(site.position, 0.0);
+            if (secondaryPpm < 0.01 && site.ppm < 0.01) return QString("--");
+            if (secondaryPpm < 0.01) return QString("\u25B2 \u221E");  // ▲ ∞
+            double fc = site.ppm / secondaryPpm;
+            if (fc >= 2.0)
+                return QString("\u25B2 %1x").arg(fc, 0, 'f', 1);  // ▲ enriched
+            if (fc <= 0.5)
+                return QString("\u25BC %1x").arg(1.0 / fc, 0, 'f', 1);  // ▼ depleted
+            return QString("\u2194 %1x").arg(fc, 0, 'f', 1);  // ↔ similar
+        }
         default:         return {};
         }
     }
@@ -100,6 +133,17 @@ QVariant JunctionTableModel::data(const QModelIndex& index, int role) const
     }
 
     if (role == Qt::ForegroundRole) {
+        if (index.column() == Enrichment && m_hasComparison) {
+            double secondaryPpm = m_secondaryPpmByPos.value(site.position, 0.0);
+            if (secondaryPpm < 0.01 && site.ppm >= 0.01)
+                return QColor("#059669");  // green — unique to primary
+            if (secondaryPpm >= 0.01 && site.ppm >= 0.01) {
+                double fc = site.ppm / secondaryPpm;
+                if (fc >= 2.0) return QColor("#059669");  // green — enriched
+                if (fc <= 0.5) return QColor("#DC2626");  // red — depleted
+            }
+            return QColor("#6B7280");  // grey — similar or N/A
+        }
         // Color-code by junction category
         JunctionCategory cat = classifyJunction(site);
         QColor color;
@@ -109,7 +153,6 @@ QVariant JunctionTableModel::data(const QModelIndex& index, int role) const
         case JunctionCategory::InOrfOutOfFrame:  color = QColor("#D97706"); break;
         case JunctionCategory::DownstreamOrBack: color = QColor("#6B7280"); break;
         }
-        // Use a slightly darker version for readability on white background
         return color.darker(130);
     }
 
@@ -151,6 +194,7 @@ QVariant JunctionTableModel::headerData(int section, Qt::Orientation orientation
     case Frame:      return "Frame";
     case RawCount:   return m_isCollapsed ? "Variants" : "Raw Count";
     case RefSeq:     return "RefSeq";
+    case Enrichment: return "Enrichment";
     default:         return {};
     }
 }

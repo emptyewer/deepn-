@@ -8,6 +8,10 @@ add_library(deepn_data STATIC
     include/depth_calculator.h
     include/export_engine.h
     include/batch_runner.h
+    include/csv_utils.h
+    include/startup_loader.h
+    src/startup_loader.cpp
+    src/csv_utils.cpp
     src/gene_annotation_db.cpp
     src/sqlite_junction_loader.cpp
     src/depth_calculator.cpp
@@ -38,9 +42,13 @@ add_library(deepn_widgets STATIC
     include/gene_selector_widget.h
     include/mrna_track_widget.h
     include/sync_controller.h
+    include/export_dialog.h
+    include/loading_overlay.h
+    src/loading_overlay.cpp
     src/gene_selector_widget.cpp
     src/mrna_track_widget.cpp
     src/sync_controller.cpp
+    src/export_dialog.cpp
 )
 
 target_include_directories(deepn_widgets PUBLIC

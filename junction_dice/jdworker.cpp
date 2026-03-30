@@ -110,6 +110,7 @@ void JDWorker::mapCallBack() {
     mapTimer->stop();
     emit sig->jd_update_progress_sig();
     emit sig->jd_finished_sig();
+    emit finished();
   }
 }
 
@@ -300,6 +301,10 @@ void JDWorker::doDice() {
     query.execBatch();
   }
   query.exec("CREATE INDEX reads_idx ON reads (read)");
+  // Checkpoint WAL and switch to DELETE journal so WAL/SHM files are removed
+  query.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+  query.exec("PRAGMA journal_mode = DELETE");
+  query.clear();
   stat->dicing = false;
   writeDiceSummary();
   delete[] buff;

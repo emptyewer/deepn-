@@ -17,7 +17,8 @@ namespace deseq2
      */
     struct GeneCountData
     {
-        QString fileName;                 // Original filename
+        QString filePath;                 // Absolute input path
+        QString fileName;                 // Display filename
         QString sampleName;               // Extracted sample name
         QString groupName;                // Assigned group name
         QMap<QString, double> geneCounts; // Gene name -> PPM value mapping

@@ -21,6 +21,8 @@ qt_add_executable(query
 set_target_properties(query PROPERTIES
     OUTPUT_NAME "MultiQuery++"
     MACOSX_BUNDLE_ICON_FILE multi_query.icns
+    MACOSX_BUNDLE_BUNDLE_NAME "MultiQuery++"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "edu.uiowa.deepn.multiquery"
 )
 
 if(WIN32)

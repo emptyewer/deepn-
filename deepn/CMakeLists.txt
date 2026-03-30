@@ -17,6 +17,8 @@ qt_add_executable(deepn
 set_target_properties(deepn PROPERTIES
     OUTPUT_NAME "DEEPN++"
     MACOSX_BUNDLE_ICON_FILE deepn.icns
+    MACOSX_BUNDLE_BUNDLE_NAME "DEEPN++"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "edu.uiowa.deepn"
 )
 
 if(WIN32)
@@ -29,6 +31,7 @@ target_link_libraries(deepn PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Widgets
+    Qt6::Sql
 )
 
 add_dependencies(deepn junction_dice gene_count query read_depth deseq2_app)
@@ -70,6 +73,8 @@ if(APPLE)
     if(MACDEPLOYQT_EXECUTABLE)
         # Pass each child app executable so macdeployqt embeds Qt frameworks for
         # all executables that live inside DEEPN++.app/Contents/Resources/.
+        # Disable macdeployqt's built-in ad-hoc signing (-codesign=-)
+        # Our cmake/codesign.cmake handles proper deep-signing for notarization.
         add_custom_command(TARGET deepn POST_BUILD
             COMMAND ${MACDEPLOYQT_EXECUTABLE}
                 "$<TARGET_BUNDLE_DIR:deepn>"
@@ -79,6 +84,7 @@ if(APPLE)
                 -executable="$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:read_depth>.app/Contents/MacOS/$<TARGET_FILE_BASE_NAME:read_depth>"
                 -executable="$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:deseq2_app>.app/Contents/MacOS/$<TARGET_FILE_BASE_NAME:deseq2_app>"
                 -verbose=0
+                -codesign=-
             COMMENT "macdeployqt: embedding Qt frameworks into DEEPN++.app"
         )
     else()

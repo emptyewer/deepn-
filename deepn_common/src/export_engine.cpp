@@ -58,10 +58,14 @@ bool ExportEngine::exportCollapsedCSV(const QString& filePath, const QVector<Col
     }
 
     QTextStream out(&file);
-    out << "Position,TotalPPM,VariantCount,DominantFrame,CDS_Class\n";
+    out << "Gene,RefSeq,Position,TotalPPM,VariantCount,DominantFrame,CDS_Class\n";
 
     for (const auto& cj : collapsed) {
-        out << cj.position << ","
+        const QString gene = (!cj.variants.isEmpty()) ? cj.variants.first().geneName : QString();
+        const QString refseq = (!cj.variants.isEmpty()) ? cj.variants.first().refseq : QString();
+        out << gene << ","
+            << refseq << ","
+            << cj.position << ","
             << QString::number(cj.totalPpm, 'f', 4) << ","
             << cj.variantCount << ","
             << cj.dominantFrame << ","
@@ -90,6 +94,52 @@ bool ExportEngine::exportDepthCSV(const QString& filePath, const DepthProfile& p
         out << pt.position << ","
             << pt.count << ","
             << QString::number(pt.normalized, 'f', 4) << "\n";
+    }
+
+    file.close();
+    return true;
+}
+
+bool ExportEngine::exportBoundaryCSV(const QString& filePath,
+                                      const QString& geneName, const QString& refseq,
+                                      const BoundaryResult& boundary,
+                                      const InsertExtent& extent)
+{
+    s_lastError.clear();
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        s_lastError = QStringLiteral("Cannot open file for writing: %1").arg(filePath);
+        qDebug() << s_lastError;
+        return false;
+    }
+
+    QTextStream out(&file);
+    out << "Gene,RefSeq,3PrimeBoundary,Confidence,ConfidenceLabel,"
+           "DepthBefore,DepthAfter,5PrimeJunction,InsertLength,CDSOverlapPercent,InFrame\n";
+
+    out << geneName << ","
+        << refseq << ","
+        << boundary.position << ","
+        << QString::number(boundary.confidence, 'f', 3) << ","
+        << boundary.confidenceLabel << ","
+        << boundary.depthBefore << ","
+        << boundary.depthAfter << ","
+        << extent.fivePrimeJunction << ","
+        << extent.insertLength << ","
+        << QString::number(extent.cdsOverlapPercent, 'f', 1) << ","
+        << (extent.inFrame ? "YES" : "NO") << "\n";
+
+    // Secondary boundaries
+    for (const auto& sec : boundary.secondary) {
+        out << geneName << ","
+            << refseq << ","
+            << sec.position << ","
+            << QString::number(sec.confidence, 'f', 3) << ","
+            << sec.confidenceLabel << ","
+            << sec.depthBefore << ","
+            << sec.depthAfter << ","
+            << ",,," << "\n";
     }
 
     file.close();

@@ -11,6 +11,9 @@ namespace deepn {
 
 class SqliteJunctionLoader {
 public:
+    // Quick schema check used during workdir auto-discovery.
+    static bool looksLikeJunctionDatabase(const QString& dbPath);
+
     // Open a depth database
     bool open(const QString& dbPath);
     void close();

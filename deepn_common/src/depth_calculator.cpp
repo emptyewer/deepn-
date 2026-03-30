@@ -33,6 +33,8 @@ DepthProfile DepthCalculator::calculate(const QString& dbPath,
     }
 
     QString connName = "depth_" + QUuid::createUuid().toString(QUuid::Id128);
+    const QString geneKey = annotation.geneName.isEmpty() ? gene : annotation.geneName;
+    const QString refseqKey = annotation.refseq.isEmpty() ? gene : annotation.refseq;
     {
         QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connName);
         db.setDatabaseName(dbPath);
@@ -71,85 +73,52 @@ DepthProfile DepthCalculator::calculate(const QString& dbPath,
             if (colName == "rend") hasRend = true;
         }
         pragmaQ.clear();
-        bool v2 = hasRstart && hasRend;
+
+        if (!hasRstart || !hasRend) {
+            m_error = "Database missing rstart/rend columns in maps table";
+            qDebug() << m_error;
+            db.close();
+            QSqlDatabase::removeDatabase(connName);
+            return profile;
+        }
 
         int mRNALen = annotation.mRNALength;
         double totalForNorm = qMax(totalReads, 1);
 
-        if (v2) {
-            // v2: use rstart/rend for interval coverage counting
-            // For each interval [P, P+W], count distinct reads where rstart <= P AND rend >= P+W
-            QSqlQuery q(db);
-            q.prepare("SELECT COUNT(DISTINCT read) FROM maps "
-                      "WHERE gene = :gene AND rstart <= :pstart AND rend >= :pend");
+        // Fetch all read spans for this gene in a single query, then
+        // count interval coverage in memory. Much faster than per-interval queries.
+        QSqlQuery q(db);
+        q.prepare("SELECT DISTINCT read, rstart, rend FROM maps "
+                  "WHERE gene = :gene "
+                  "UNION "
+                  "SELECT DISTINCT read, rstart, rend FROM maps "
+                  "WHERE refseq = :refseq");
+        q.bindValue(":gene", geneKey);
+        q.bindValue(":refseq", refseqKey);
 
-            for (int p = 0; p + intervalWidth <= mRNALen; p += intervalSpacing) {
-                int pEnd = p + intervalWidth;
-
-                q.bindValue(":gene", gene);
-                q.bindValue(":pstart", p);
-                q.bindValue(":pend", pEnd);
-
-                DepthPoint pt;
-                pt.position = p;
-
-                if (q.exec() && q.next()) {
-                    pt.count = q.value(0).toInt();
-                } else {
-                    pt.count = 0;
-                }
-
-                pt.normalized = (pt.count * 1000000.0) / totalForNorm;
-                profile.points.append(pt);
+        struct ReadSpan { int rstart; int rend; };
+        QVector<ReadSpan> spans;
+        if (q.exec()) {
+            while (q.next()) {
+                spans.append({q.value(1).toInt(), q.value(2).toInt()});
             }
-            q.clear();
-        } else {
-            // v1 fallback: use reads.sequence substring matching
-            // For each interval, extract the gene subsequence and count reads whose sequence
-            // contains that subsequence
-            if (annotation.sequence.isEmpty()) {
-                m_error = "No gene sequence available for v1 depth calculation";
-                qDebug() << m_error;
-                db.close();
-                QSqlDatabase::removeDatabase(connName);
-                return profile;
-            }
+        }
+        q.clear();
 
-            // Get all read sequences for this gene (join maps with reads)
-            QSqlQuery readQ(db);
-            readQ.prepare("SELECT DISTINCT m.read, r.sequence FROM maps m "
-                          "JOIN reads r ON m.read = r.read "
-                          "WHERE m.gene = :gene");
-            readQ.bindValue(":gene", gene);
-
-            QMap<QString, QString> readSeqs;  // read name -> sequence
-            if (readQ.exec()) {
-                while (readQ.next()) {
-                    readSeqs.insert(readQ.value(0).toString(), readQ.value(1).toString());
+        for (int p = 0; p + intervalWidth <= mRNALen; p += intervalSpacing) {
+            int pEnd = p + intervalWidth;
+            int count = 0;
+            for (const auto& s : spans) {
+                if (s.rstart <= p && s.rend >= pEnd) {
+                    count++;
                 }
             }
-            readQ.clear();
 
-            QString geneSeq = annotation.sequence;
-
-            for (int p = 0; p + intervalWidth <= mRNALen; p += intervalSpacing) {
-                QString subseq = geneSeq.mid(p, intervalWidth);
-
-                DepthPoint pt;
-                pt.position = p;
-                pt.count = 0;
-
-                if (subseq.length() == intervalWidth) {
-                    for (auto it = readSeqs.constBegin(); it != readSeqs.constEnd(); ++it) {
-                        if (it.value().contains(subseq)) {
-                            pt.count++;
-                        }
-                    }
-                }
-
-                pt.normalized = (pt.count * 1000000.0) / totalForNorm;
-                profile.points.append(pt);
-            }
+            DepthPoint pt;
+            pt.position = p;
+            pt.count = count;
+            pt.normalized = (count * 1000000.0) / totalForNorm;
+            profile.points.append(pt);
         }
 
         db.close();

@@ -4,6 +4,8 @@
 #include <QDir>
 #include <QFile>
 #include <QProcess>
+#include <QScrollBar>
+#include <QStatusBar>
 #include <QtSql>
 
 #include "gcworker.h"
@@ -45,8 +47,18 @@ void MainWindow::launchGeneCount(QString file) {
 }
 
 void MainWindow::updateGeneCountProgress() {
+  QScrollBar* sb = ui->gc_output->verticalScrollBar();
+  int scrollPos = sb->value();
+  bool wasAtBottom = (scrollPos >= sb->maximum() - 4);
   ui->gc_output->clear();
+  bool first = true;
   foreach (GCStat stat, statistics.values()) {
+    if (!first) {
+      ui->gc_output->appendPlainText(QString(""));
+      ui->gc_output->appendPlainText(QString("────────────────────────────────"));
+      ui->gc_output->appendPlainText(QString(""));
+    }
+    first = false;
     if (stat.running == false) {
       ui->gc_output->appendPlainText(QString(">>> %1 <<<").arg(stat.input));
       ui->gc_output->appendPlainText(QString("Finished Counting %2 in %1 secs ")
@@ -61,15 +73,33 @@ void MainWindow::updateGeneCountProgress() {
       ui->gc_output->appendPlainText(
           QString("Current Read : %1").arg(stat.readName));
     }
-    //    ui->gc_output->appendPlainText(stat.counter.getStats());
+  }
+  if (wasAtBottom) {
+    sb->setValue(sb->maximum());
+  } else {
+    sb->setValue(scrollPos);
   }
 }
 
 void MainWindow::geneCountFinished() {
   activeWorkers--;
-  if (activeWorkers <= 0) {
+  launchNext();
+  int finished = files.length() - activeWorkers - pendingFiles.length();
+  if (activeWorkers <= 0 && pendingFiles.isEmpty()) {
     ui->start_btn->setEnabled(true);
     ui->exit_btn->setEnabled(true);
+    statusBar()->showMessage(QString("All %1 file(s) completed.").arg(files.length()));
+  } else {
+    statusBar()->showMessage(QString("%1 of %2 completed, %3 running, %4 queued")
+                                 .arg(finished).arg(files.length())
+                                 .arg(activeWorkers).arg(pendingFiles.length()));
+  }
+}
+
+void MainWindow::launchNext() {
+  while (activeWorkers < maxWorkers && !pendingFiles.isEmpty()) {
+    launchGeneCount(pendingFiles.takeFirst());
+    activeWorkers++;
   }
 }
 
@@ -83,8 +113,13 @@ void MainWindow::on_start_btn_clicked() {
   ui->gc_output->appendPlainText("Starting Gene Count...");
   ui->start_btn->setEnabled(false);
   ui->exit_btn->setEnabled(false);
-  activeWorkers = files.length();
-  for (int i = 0; i < files.length(); i++) {
-    launchGeneCount(files.at(i));
+  maxWorkers = qMax(1, QThread::idealThreadCount() - 2);
+  pendingFiles = files;
+  activeWorkers = 0;
+  while (activeWorkers < maxWorkers && !pendingFiles.isEmpty()) {
+    launchGeneCount(pendingFiles.takeFirst());
+    activeWorkers++;
   }
+  statusBar()->showMessage(QString("Processing %1 file(s), %2 concurrent...")
+                               .arg(files.length()).arg(activeWorkers));
 }

@@ -20,6 +20,8 @@ qt_add_executable(gene_count
 set_target_properties(gene_count PROPERTIES
     OUTPUT_NAME "GeneCount++"
     MACOSX_BUNDLE_ICON_FILE gene_count.icns
+    MACOSX_BUNDLE_BUNDLE_NAME "GeneCount++"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "edu.uiowa.deepn.genecount"
 )
 
 if(WIN32)

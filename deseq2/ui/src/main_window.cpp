@@ -6,6 +6,7 @@
 #include <QHeaderView>
 #include <QStandardPaths>
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QTextStream>
 #include <QDebug>
@@ -20,12 +21,18 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlError>
+#include <QSqlRecord>
 #include <QClipboard>
 #include <QProcess>
 #include <QInputDialog>
+#include <QRegularExpression>
 #include <QSvgGenerator>
+#include <QUuid>
 #include <stdexcept>
+#include <array>
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <QLegendMarker>
 
 // Y2H-SCORES library
@@ -40,9 +47,220 @@
 namespace deseq2
 {
 
+    namespace
+    {
+        constexpr int kDeseqColumnCount = 6;
+        constexpr int kResultsColumnGene = 0;
+        constexpr int kResultsColumnBaseMean = 1;
+        constexpr int kResultsColumnLog2FoldChange = 2;
+        constexpr int kResultsColumnPValue = 5;
+        constexpr int kResultsColumnPadj = 6;
+        constexpr int kResultsColumnEnrichmentCall = 7;
+        constexpr int kResultsColumnEnrichmentScore = 8;
+        constexpr int kResultsColumnSpecificityScore = 9;
+        constexpr int kResultsColumnInFrameScore = 10;
+        constexpr int kResultsColumnBordaScore = 11;
+        constexpr int kResultsColumnInFrameTranscripts = 12;
+        constexpr int kInteractivePointLimit = 5000;
+
+        QString joinPaths(const QStringList &paths)
+        {
+            return paths.join("; ");
+        }
+
+        QString sanitizeGeneName(const std::string &geneName)
+        {
+            QString sanitized;
+            sanitized.reserve(static_cast<int>(geneName.size()));
+            for (unsigned char ch : geneName)
+            {
+                if (ch == '\0')
+                {
+                    sanitized += QChar(0xFFFD);
+                }
+                else if (ch < 32 || ch == 127)
+                {
+                    sanitized += '?';
+                }
+                else
+                {
+                    sanitized += QChar(ch);
+                }
+            }
+            return sanitized.trimmed();
+        }
+
+        QString csvEscape(const QString &value)
+        {
+            QString escaped = value;
+            escaped.replace('"', "\"\"");
+            if (escaped.contains(',') || escaped.contains('"') || escaped.contains('\n'))
+                return QString("\"%1\"").arg(escaped);
+            return escaped;
+        }
+
+        bool geneNameHasInvalidBytes(const std::string &geneName)
+        {
+            for (unsigned char ch : geneName)
+            {
+                if (ch == '\0' || ch < 32 || ch == 127)
+                    return true;
+            }
+            return false;
+        }
+
+        QStringList splitPaths(const QString &raw)
+        {
+            QStringList parts;
+            for (const QString &path : raw.split(';', Qt::SkipEmptyParts))
+            {
+                const QString trimmed = path.trimmed();
+                if (!trimmed.isEmpty())
+                    parts << QFileInfo(trimmed).absoluteFilePath();
+            }
+            parts.removeDuplicates();
+            return parts;
+        }
+
+        QString inferGroupNameForSample(const QString &sampleName)
+        {
+            const QString lower = sampleName.toLower();
+            if (lower.contains("non-selected") || lower.contains("nonselected") ||
+                lower.contains("non_selection") || lower.contains("_non_") ||
+                lower.contains(" non ") || lower.endsWith("_non") ||
+                lower.startsWith("non_") || lower.contains("vector"))
+            {
+                return QStringLiteral("Non-Selected");
+            }
+            if (lower.contains("selected") || lower.contains("_sel_") ||
+                lower.endsWith("_sel") || lower.startsWith("sel_"))
+            {
+                return QStringLiteral("Selected");
+            }
+            if (lower.contains("control"))
+                return QStringLiteral("Vector Control");
+            if (lower.contains("bait"))
+                return QStringLiteral("Bait");
+            return {};
+        }
+
+        QStringList discoverFiles(const QString &directoryPath, const QStringList &filters)
+        {
+            QDir dir(directoryPath);
+            if (!dir.exists())
+                return {};
+
+            QStringList files;
+            const QFileInfoList infoList = dir.entryInfoList(filters, QDir::Files, QDir::Name);
+            for (const QFileInfo &info : infoList)
+                files << info.absoluteFilePath();
+            return files;
+        }
+
+        QString databaseBaitName(const QStringList &groupNames)
+        {
+            for (const QString &groupName : groupNames)
+            {
+                if (groupName.compare("Vector Control", Qt::CaseInsensitive) != 0 &&
+                    groupName.compare("Control", Qt::CaseInsensitive) != 0 &&
+                    groupName.compare("Non-Selected", Qt::CaseInsensitive) != 0)
+                {
+                    return groupName;
+                }
+            }
+            return groupNames.isEmpty() ? QStringLiteral("analysis") : groupNames.last();
+        }
+
+        QList<QPointF> downsamplePointsByXBucket(const QList<QPointF> &points,
+                                                 int maxPoints)
+        {
+            if (points.size() <= maxPoints || maxPoints <= 0)
+                return points;
+
+            double minX = std::numeric_limits<double>::max();
+            double maxX = std::numeric_limits<double>::lowest();
+            for (const QPointF &point : points)
+            {
+                minX = std::min(minX, point.x());
+                maxX = std::max(maxX, point.x());
+            }
+
+            if (!std::isfinite(minX) || !std::isfinite(maxX) || minX == maxX)
+            {
+                QList<QPointF> reduced;
+                const int step = std::max(qsizetype(1), points.size() / maxPoints);
+                for (int idx = 0; idx < points.size(); idx += step)
+                    reduced.append(points[idx]);
+                return reduced;
+            }
+
+            struct Bucket
+            {
+                bool hasPoint = false;
+                QPointF minYPoint;
+                QPointF maxYPoint;
+            };
+
+            const int bucketCount = std::max(1, maxPoints / 2);
+            QVector<Bucket> buckets(bucketCount);
+            const double bucketWidth = (maxX - minX) / bucketCount;
+
+            for (const QPointF &point : points)
+            {
+                int bucketIndex = static_cast<int>((point.x() - minX) / std::max(bucketWidth, 1e-12));
+                bucketIndex = std::clamp(bucketIndex, 0, bucketCount - 1);
+                Bucket &bucket = buckets[bucketIndex];
+                if (!bucket.hasPoint)
+                {
+                    bucket.hasPoint = true;
+                    bucket.minYPoint = point;
+                    bucket.maxYPoint = point;
+                }
+                else
+                {
+                    if (point.y() < bucket.minYPoint.y())
+                        bucket.minYPoint = point;
+                    if (point.y() > bucket.maxYPoint.y())
+                        bucket.maxYPoint = point;
+                }
+            }
+
+            QList<QPointF> reduced;
+            reduced.reserve(maxPoints);
+            for (const Bucket &bucket : buckets)
+            {
+                if (!bucket.hasPoint)
+                    continue;
+                reduced.append(bucket.minYPoint);
+                if (bucket.maxYPoint != bucket.minYPoint)
+                    reduced.append(bucket.maxYPoint);
+            }
+
+            std::sort(reduced.begin(), reduced.end(),
+                      [](const QPointF &lhs, const QPointF &rhs)
+                      {
+                          if (lhs.x() == rhs.x())
+                              return lhs.y() < rhs.y();
+                          return lhs.x() < rhs.x();
+                      });
+
+            if (reduced.size() <= maxPoints)
+                return reduced;
+
+            QList<QPointF> capped;
+            capped.reserve(maxPoints);
+            const double step = static_cast<double>(reduced.size() - 1) / std::max(1, maxPoints - 1);
+            for (int idx = 0; idx < maxPoints; ++idx)
+            {
+                capped.append(reduced[static_cast<int>(std::round(idx * step))]);
+            }
+            return capped;
+        }
+    } // namespace
+
     // AnalysisWorker implementation
-    AnalysisWorker::AnalysisWorker(const CombinedData &data, double pValueThreshold)
-        : m_inputData(data), m_pValueThreshold(pValueThreshold), m_shouldStop(false)
+    AnalysisWorker::AnalysisWorker(const CombinedData &data, const AnalysisRunConfig &config)
+        : m_inputData(data), m_config(config), m_shouldStop(false)
     {
     }
 
@@ -50,10 +268,46 @@ namespace deseq2
     {
         try
         {
-            emit progressChanged(0, "Starting DESeq2 analysis...");
+            QElapsedTimer analysisTimer;
+            analysisTimer.start();
+            emit progressChanged(0, "Starting StatMaker analysis...");
+
+            CombinedData filteredData = m_inputData;
+            if (m_config.ppmThreshold > 0.0)
+            {
+                QVector<QString> filteredGeneNames;
+                QVector<QVector<double>> filteredCountMatrix;
+                QVector<QVector<int>> filteredRawCountMatrix;
+
+                for (int geneIdx = 0; geneIdx < filteredData.geneNames.size(); ++geneIdx)
+                {
+                    double maxPpm = 0.0;
+                    for (double value : filteredData.countMatrix[geneIdx])
+                        maxPpm = std::max(maxPpm, value);
+
+                    if (maxPpm >= m_config.ppmThreshold)
+                    {
+                        filteredGeneNames.append(filteredData.geneNames[geneIdx]);
+                        filteredCountMatrix.append(filteredData.countMatrix[geneIdx]);
+                        filteredRawCountMatrix.append(filteredData.rawCountMatrix[geneIdx]);
+                    }
+                }
+
+                emit debugMessage(QString("PPM pre-filter kept %1 of %2 genes at threshold %3")
+                                      .arg(filteredGeneNames.size())
+                                      .arg(filteredData.geneNames.size())
+                                      .arg(m_config.ppmThreshold));
+
+                filteredData.geneNames = filteredGeneNames;
+                filteredData.countMatrix = filteredCountMatrix;
+                filteredData.rawCountMatrix = filteredRawCountMatrix;
+            }
+
+            if (filteredData.geneNames.isEmpty())
+                throw std::runtime_error("No genes remain after PPM filtering.");
 
             // Convert Qt data to Eigen format
-            auto [counts, metadata] = convertToEigenFormat(m_inputData);
+            auto [counts, metadata] = convertToEigenFormat(filteredData);
 
             emit progressChanged(10, "Data conversion completed");
 
@@ -129,11 +383,30 @@ namespace deseq2
 
             // Determine the number of unique conditions
             QSet<QString> uniqueGroups;
-            for (const auto &group : m_inputData.groupNames)
+            for (const auto &group : filteredData.groupNames)
                 uniqueGroups.insert(group);
             QList<QString> groupList = uniqueGroups.values();
             std::sort(groupList.begin(), groupList.end());
             int numGroups = groupList.size();
+            const QString primaryContrastLabel =
+                numGroups >= 2 ? QString("%1 vs %2").arg(groupList[1], groupList[0])
+                               : QStringLiteral("analysis");
+
+            std::vector<std::string> geneNamesStd;
+            geneNamesStd.reserve(filteredData.geneNames.size());
+            for (const auto &gene : filteredData.geneNames)
+                geneNamesStd.push_back(gene.toStdString());
+
+            for (size_t geneIdx = 0; geneIdx < geneNamesStd.size(); ++geneIdx)
+            {
+                if (geneNameHasInvalidBytes(geneNamesStd[geneIdx]))
+                {
+                    throw std::runtime_error(
+                        QString("Invalid control byte detected in gene name at row %1")
+                            .arg(static_cast<qulonglong>(geneIdx))
+                            .toStdString());
+                }
+            }
 
             // For the primary contrast (condition 1 vs condition 0)
             Eigen::VectorXd contrast(numGroups);
@@ -142,7 +415,7 @@ namespace deseq2
             if (numGroups >= 2)
                 contrast(1) = 1.0;
 
-            DeseqStats ds(dds, contrast, m_pValueThreshold, true, true);
+            DeseqStats ds(dds, contrast, m_config.pValueThreshold, true, true);
 
             emit progressChanged(85, "Running Wald test...");
             ds.runWaldTest();
@@ -160,6 +433,7 @@ namespace deseq2
             // For three-way comparisons, run additional contrasts
             std::vector<Eigen::MatrixXd> allContrastResults;
             std::vector<std::string> allContrastLabels;
+            std::vector<PairwiseContrast> pairwiseBaitContrasts;
 
             // Store first contrast result
             allContrastResults.push_back(results);
@@ -180,7 +454,7 @@ namespace deseq2
                     extraContrast.setZero();
                     extraContrast(g) = 1.0;
 
-                    DeseqStats extraDs(dds, extraContrast, m_pValueThreshold, true, true);
+                    DeseqStats extraDs(dds, extraContrast, m_config.pValueThreshold, true, true);
                     extraDs.runWaldTest();
                     extraDs.cooksFiltering();
                     extraDs.independentFiltering();
@@ -204,14 +478,22 @@ namespace deseq2
                         pairContrast(g) = 1.0;
                         pairContrast(h) = -1.0;
 
-                        DeseqStats pairDs(dds, pairContrast, m_pValueThreshold, true, true);
+                        DeseqStats pairDs(dds, pairContrast, m_config.pValueThreshold, true, true);
                         pairDs.runWaldTest();
                         pairDs.cooksFiltering();
                         pairDs.independentFiltering();
 
-                        allContrastResults.push_back(pairDs.summary());
+                        Eigen::MatrixXd pairSummary = pairDs.summary();
+                        allContrastResults.push_back(pairSummary);
                         allContrastLabels.push_back(
                             groupList[g].toStdString() + " vs " + groupList[h].toStdString());
+
+                        PairwiseContrast pairwiseContrast;
+                        pairwiseContrast.bait_numerator = groupList[g].toStdString();
+                        pairwiseContrast.bait_denominator = groupList[h].toStdString();
+                        pairwiseContrast.results = pairSummary;
+                        pairwiseContrast.gene_names = geneNamesStd;
+                        pairwiseBaitContrasts.push_back(pairwiseContrast);
                     }
                 }
             }
@@ -234,6 +516,8 @@ namespace deseq2
             analysisResults.contrastResults = allContrastResults;
             analysisResults.contrastLabels = allContrastLabels;
             analysisResults.activeContrast = 0;
+            analysisResults.activeContrastLabel = primaryContrastLabel;
+            analysisResults.createdAt = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
 
             // Store dispersion data for visualization
             analysisResults.genewiseDispersions = dds.getGenewiseDispersions();
@@ -241,31 +525,213 @@ namespace deseq2
             analysisResults.baseMeans = dds.getNormedMeans();
 
             // Convert gene names and sample names to std::vector<std::string>
-            std::vector<std::string> geneNames_std;
-            geneNames_std.reserve(m_inputData.geneNames.size());
-            for (const auto &gene : m_inputData.geneNames)
-            {
-                geneNames_std.push_back(gene.toStdString());
-            }
-            analysisResults.geneNames = geneNames_std;
+            analysisResults.geneNames = geneNamesStd;
 
-            analysisResults.sampleNames.reserve(m_inputData.sampleNames.size());
-            for (const auto &sample : m_inputData.sampleNames)
+            analysisResults.sampleNames.reserve(filteredData.sampleNames.size());
+            for (const auto &sample : filteredData.sampleNames)
             {
                 analysisResults.sampleNames.push_back(sample.toStdString());
             }
 
             // Y2H-SCORES: Enrichment scoring
             emit progressChanged(96, "Computing Y2H enrichment scores...");
+            QElapsedTimer enrichmentTimer;
+            enrichmentTimer.start();
             deseq2::EnrichmentScorer enrichmentScorer;
-            auto enrichmentResults = enrichmentScorer.compute(results, geneNames_std, "analysis", 1.0, 0.0);
+            QStringList groupNameList;
+            for (const QString &groupName : filteredData.groupNames)
+                groupNameList << groupName;
+            const std::string baitName = databaseBaitName(groupNameList).toStdString();
+            auto enrichmentResults = enrichmentScorer.compute(
+                results,
+                geneNamesStd,
+                baitName,
+                m_config.enrichmentPValueThreshold,
+                m_config.enrichmentFoldChangeThreshold);
+            emit debugMessage(QString("Y2H enrichment completed in %1 ms (%2 genes scored)")
+                                  .arg(enrichmentTimer.elapsed())
+                                  .arg(enrichmentResults.size()));
 
-            // Y2H-SCORES: Borda aggregation (enrichment only for now, no junction data in this context)
-            emit progressChanged(97, "Computing Y2H Borda aggregation...");
+            // Y2H-SCORES: Specificity scoring where multi-bait contrasts exist
+            std::vector<deseq2::SpecificityResult> specificityResults;
+            if (!pairwiseBaitContrasts.empty())
+            {
+                emit progressChanged(97, "Computing Y2H specificity scores...");
+                QElapsedTimer specificityTimer;
+                specificityTimer.start();
+                deseq2::SpecificityScorer specificityScorer;
+                specificityResults = specificityScorer.compute(
+                    pairwiseBaitContrasts,
+                    std::max(1, numGroups - 1),
+                    m_config.specificityPValueThreshold,
+                    m_config.enrichmentFoldChangeThreshold);
+                emit debugMessage(QString("Y2H specificity completed in %1 ms (%2 gene-bait scores)")
+                                      .arg(specificityTimer.elapsed())
+                                      .arg(specificityResults.size()));
+            }
+            else
+            {
+                emit debugMessage("Y2H specificity skipped: no pairwise bait contrasts available.");
+            }
+
+            // Y2H-SCORES: In-frame scoring from junction SQLite inputs when selected/non-selected files are available
+            std::vector<deseq2::InFrameResult> inFrameResults;
+            if (!m_config.junctionFiles.isEmpty())
+            {
+                struct JunctionAccumulator
+                {
+                    std::string transcriptId;
+                    std::string gene;
+                    int inFrameSelected = 0;
+                    int totalSelected = 0;
+                    int inFrameNonSelected = 0;
+                    int totalNonSelected = 0;
+                };
+
+                std::map<std::string, JunctionAccumulator> accumulators;
+                int matchedJunctionFiles = 0;
+
+                for (const QString &junctionFile : m_config.junctionFiles)
+                {
+                    const QString junctionSample = QFileInfo(junctionFile).baseName();
+                    QString sampleGroup;
+
+                    for (int sampleIdx = 0; sampleIdx < filteredData.sampleNames.size(); ++sampleIdx)
+                    {
+                        const QString sampleName = filteredData.sampleNames[sampleIdx];
+                        if (junctionSample.compare(sampleName, Qt::CaseInsensitive) == 0 ||
+                            junctionSample.startsWith(sampleName + ".", Qt::CaseInsensitive) ||
+                            sampleName.startsWith(junctionSample + ".", Qt::CaseInsensitive))
+                        {
+                            sampleGroup = filteredData.groupNames[sampleIdx];
+                            break;
+                        }
+                    }
+
+                    if (sampleGroup.isEmpty())
+                    {
+                        sampleGroup = inferGroupNameForSample(junctionSample);
+                    }
+
+                    const QString lowerGroup = sampleGroup.toLower();
+                    const bool isSelected =
+                        lowerGroup.contains("selected") && !lowerGroup.contains("non");
+                    const bool isNonSelected =
+                        lowerGroup.contains("non-selected") || lowerGroup.contains("nonselected") ||
+                        lowerGroup.contains("non_selection") || lowerGroup.contains("vector") ||
+                        lowerGroup == "control";
+
+                    if (!isSelected && !isNonSelected)
+                        continue;
+
+                    QString connName = QString("statmaker_if_%1").arg(QUuid::createUuid().toString(QUuid::Id128));
+                    {
+                        QSqlDatabase junctionDb = QSqlDatabase::addDatabase("QSQLITE", connName);
+                        junctionDb.setDatabaseName(junctionFile);
+                        junctionDb.setConnectOptions("QSQLITE_OPEN_READONLY");
+                        if (!junctionDb.open())
+                        {
+                            emit debugMessage(QString("Failed to open junction database %1: %2")
+                                                  .arg(junctionFile, junctionDb.lastError().text()));
+                        }
+                        else
+                        {
+                            QSqlQuery junctionQuery(junctionDb);
+                            const QString sql =
+                                "SELECT gene, COALESCE(NULLIF(refseq, ''), gene) AS transcript_id, "
+                                "COUNT(DISTINCT CASE WHEN frame = '+0_frame' THEN read END) AS in_frame_reads, "
+                                "COUNT(DISTINCT read) AS total_reads "
+                                "FROM maps GROUP BY gene, transcript_id";
+                            if (junctionQuery.exec(sql))
+                            {
+                                matchedJunctionFiles++;
+                                while (junctionQuery.next())
+                                {
+                                    const QString gene = junctionQuery.value(0).toString().trimmed();
+                                    const QString transcriptId = junctionQuery.value(1).toString().trimmed();
+                                    const int inFrameReads = junctionQuery.value(2).toInt();
+                                    const int totalReads = junctionQuery.value(3).toInt();
+                                    if (gene.isEmpty() || totalReads <= 0)
+                                        continue;
+
+                                    const std::string key =
+                                        gene.toStdString() + "\t" + transcriptId.toStdString();
+                                    auto &acc = accumulators[key];
+                                    acc.gene = gene.toStdString();
+                                    acc.transcriptId = transcriptId.toStdString();
+                                    if (isSelected)
+                                    {
+                                        acc.inFrameSelected += inFrameReads;
+                                        acc.totalSelected += totalReads;
+                                    }
+                                    else if (isNonSelected)
+                                    {
+                                        acc.inFrameNonSelected += inFrameReads;
+                                        acc.totalNonSelected += totalReads;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                emit debugMessage(QString("Failed to query junction database %1: %2")
+                                                      .arg(junctionFile, junctionQuery.lastError().text()));
+                            }
+                            junctionDb.close();
+                        }
+                    }
+                    QSqlDatabase::removeDatabase(connName);
+                }
+
+                if (!accumulators.empty())
+                {
+                    emit progressChanged(98, "Computing Y2H in-frame scores...");
+                    QElapsedTimer inFrameTimer;
+                    inFrameTimer.start();
+                    std::vector<deseq2::JunctionData> junctionData;
+                    junctionData.reserve(accumulators.size());
+                    for (const auto &[key, acc] : accumulators)
+                    {
+                        Q_UNUSED(key);
+                        deseq2::JunctionData row;
+                        row.transcript_id = acc.transcriptId;
+                        row.gene = acc.gene;
+                        row.in_frame_reads_selected = acc.inFrameSelected;
+                        row.total_reads_selected = acc.totalSelected;
+                        row.in_frame_reads_nonselected = acc.inFrameNonSelected;
+                        row.total_reads_nonselected = acc.totalNonSelected;
+                        junctionData.push_back(row);
+                    }
+
+                    deseq2::InFrameScorer inFrameScorer;
+                    inFrameResults = inFrameScorer.compute(junctionData, baitName);
+                    emit debugMessage(QString("Y2H in-frame completed in %1 ms (%2 genes scored from %3 junction files)")
+                                          .arg(inFrameTimer.elapsed())
+                                          .arg(inFrameResults.size())
+                                          .arg(matchedJunctionFiles));
+                }
+                else
+                {
+                    emit debugMessage("Y2H in-frame skipped: no selected/non-selected junction datasets matched the loaded samples.");
+                }
+            }
+            else
+            {
+                emit debugMessage("Y2H in-frame skipped: no junction databases configured.");
+            }
+
+            // Y2H-SCORES: Borda aggregation across all available metrics
+            emit progressChanged(99, "Computing Y2H Borda aggregation...");
+            QElapsedTimer bordaTimer;
+            bordaTimer.start();
             deseq2::BordaAggregator borda;
-            auto y2hResults = borda.aggregate(enrichmentResults, {}, {});
+            auto y2hResults = borda.aggregate(enrichmentResults, specificityResults, inFrameResults);
+            emit debugMessage(QString("Y2H Borda aggregation completed in %1 ms (%2 results)")
+                                  .arg(bordaTimer.elapsed())
+                                  .arg(y2hResults.size()));
 
             analysisResults.enrichmentScores = enrichmentResults;
+            analysisResults.specificityScores = specificityResults;
+            analysisResults.inFrameScores = inFrameResults;
             analysisResults.y2hScores = y2hResults;
 
             // Calculate summary statistics
@@ -273,7 +739,7 @@ namespace deseq2
             analysisResults.significantGenes = 0;
             analysisResults.upregulatedGenes = 0;
             analysisResults.downregulatedGenes = 0;
-            analysisResults.pValueThreshold = m_pValueThreshold;
+            analysisResults.pValueThreshold = m_config.pValueThreshold;
             analysisResults.log2FCThreshold = 0.0; // Default, can be customized later
 
             for (int i = 0; i < results.rows(); ++i)
@@ -281,7 +747,7 @@ namespace deseq2
                 double padj = results(i, 5); // Adjusted p-value column (FIXED: was 4, should be 5)
                 double lfc = results(i, 1);  // Log2 fold change column
 
-                if (padj < m_pValueThreshold)
+                if (!std::isnan(padj) && padj < m_config.pValueThreshold)
                 {
                     analysisResults.significantGenes++;
                     if (lfc > 0)
@@ -299,12 +765,8 @@ namespace deseq2
             analysisResults.errorMessage = "";
 
             emit progressChanged(100, "Analysis completed successfully!");
-            emit debugMessage("About to emit analysisFinished signal");
-            emit debugMessage("analysisResults.isValid = " + QString(analysisResults.isValid ? "true" : "false"));
-            emit debugMessage("analysisResults.totalGenes = " + QString::number(analysisResults.totalGenes));
-            emit debugMessage("analysisResults.significantGenes = " + QString::number(analysisResults.significantGenes));
-            emit analysisFinished(&analysisResults);
-            emit debugMessage("analysisFinished signal emitted");
+            emit debugMessage(QString("Analysis completed in %1 ms").arg(analysisTimer.elapsed()));
+            emit analysisFinished(analysisResults);
             emit finished(); // Signal that worker is completely done
         }
         catch (const std::exception &e)
@@ -438,6 +900,7 @@ namespace deseq2
         m_lastUsedDirectory = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
         // Load saved last used directory from settings
         loadLastUsedDirectory();
+        qRegisterMetaType<deseq2::AnalysisResults>("deseq2::AnalysisResults");
         // Setup UI from the UI file
         m_ui = std::make_unique<Ui::MainWindow>();
         m_ui->setupUi(this);
@@ -447,7 +910,7 @@ namespace deseq2
         setupMenusAndToolbar();
         initializeTables();
         updateUiState();
-        addProgressMessage("DESeq2 GUI Application started successfully.");
+        addProgressMessage("StatMaker++ started successfully.");
 
         // Initialize analysis results
         m_analysisResults.isValid = false;
@@ -465,6 +928,229 @@ namespace deseq2
             m_analysisThread->quit();
             m_analysisThread->wait(5000); // Wait up to 5 seconds
         }
+    }
+
+    void MainWindow::loadWorkingDirectory(const QString &workdir)
+    {
+        if (workdir.trimmed().isEmpty())
+            return;
+
+        QDir dir(QFileInfo(workdir).absoluteFilePath());
+        if (!dir.exists())
+            dir.mkpath(".");
+
+        m_workingDirectory = dir.absolutePath();
+        m_lastUsedDirectory = m_workingDirectory;
+        saveLastUsedDirectory();
+
+        QDir analyzedDir(dir.filePath("analyzed_files"));
+        if (!analyzedDir.exists())
+            dir.mkpath("analyzed_files");
+
+        addProgressMessage(QString("Loading working directory: %1").arg(m_workingDirectory));
+
+        populateAutoDiscoveredFiles();
+        autoDetectJunctionFiles();
+
+        const QString sqlitePath = resultsDatabasePathForWorkdir(m_workingDirectory);
+        if (QFile::exists(sqlitePath))
+        {
+            loadResultsFromSqlite(sqlitePath);
+        }
+    }
+
+    void MainWindow::loadInputFiles(const QStringList &filePaths, bool clearExisting)
+    {
+        if (clearExisting)
+        {
+            m_geneCountHandler->clearAllFiles();
+            if (m_geneCountFilesTable)
+                m_geneCountFilesTable->setRowCount(0);
+            if (m_countsPreviewTable)
+            {
+                m_countsPreviewTable->clear();
+                m_countsPreviewTable->setRowCount(0);
+                m_countsPreviewTable->setColumnCount(0);
+            }
+            if (m_metadataPreviewTable)
+            {
+                m_metadataPreviewTable->clear();
+                m_metadataPreviewTable->setRowCount(0);
+                m_metadataPreviewTable->setColumnCount(0);
+            }
+            m_combinedData = CombinedData();
+        }
+
+        int addedCount = 0;
+        QStringList normalizedFiles;
+        for (const QString &path : filePaths)
+        {
+            const QString absolutePath = QFileInfo(path.trimmed()).absoluteFilePath();
+            if (absolutePath.isEmpty() || !QFile::exists(absolutePath))
+                continue;
+            if (QFileInfo(absolutePath).fileName().compare("statmaker_results.sqlite", Qt::CaseInsensitive) == 0)
+                continue;
+            normalizedFiles << absolutePath;
+        }
+        normalizedFiles.removeDuplicates();
+        std::sort(normalizedFiles.begin(), normalizedFiles.end());
+
+        if (!normalizedFiles.isEmpty())
+            updateLastUsedDirectory(normalizedFiles.first());
+
+        for (const QString &absolutePath : normalizedFiles)
+        {
+            if (m_geneCountHandler->addGeneCountFile(absolutePath))
+                addedCount++;
+        }
+
+        m_geneCountHandler->updateGeneCountFilesTable(m_geneCountFilesTable);
+        m_resultsColumnsSized = false;
+        invalidatePlotCache();
+        updateUiState();
+
+        if (addedCount == 0)
+            return;
+
+        addProgressMessage(QString("Loaded %1 StatMaker input file(s).").arg(addedCount));
+
+        QMap<QString, QString> patterns;
+        patterns["NON"] = "Non-Selected";
+        patterns["non-selected"] = "Non-Selected";
+        patterns["nonselected"] = "Non-Selected";
+        patterns["_NON_"] = "Non-Selected";
+        patterns["SEL"] = "Selected";
+        patterns["selected"] = "Selected";
+        patterns["_SEL_"] = "Selected";
+        patterns["vector"] = "Vector Control";
+        patterns["control"] = "Vector Control";
+        patterns["bait"] = "Bait";
+        const int autoAssigned = m_geneCountHandler->autoAssignGroups(patterns);
+        if (autoAssigned > 0)
+        {
+            addProgressMessage(QString("Auto-assigned groups for %1 input file(s).").arg(autoAssigned));
+            m_geneCountHandler->updateGeneCountFilesTable(m_geneCountFilesTable);
+        }
+
+        bool allAssigned = true;
+        for (const auto &data : m_geneCountHandler->getGeneCountFiles())
+        {
+            if (data.groupName.isEmpty())
+            {
+                allAssigned = false;
+                break;
+            }
+        }
+
+        if (allAssigned && !m_geneCountHandler->getGeneCountFiles().isEmpty())
+        {
+            m_combinedData = m_geneCountHandler->generateCountMatrixAndMetadata();
+            if (m_combinedData.isValid)
+            {
+                updateCountsPreviewWithConvertedValues(m_countsPreviewTable, m_combinedData);
+                m_geneCountHandler->updateMetadataPreviewTable(m_metadataPreviewTable, m_combinedData);
+                updateUiState();
+                addProgressMessage(QString("Prepared count matrix automatically: %1 genes x %2 samples.")
+                                       .arg(m_combinedData.geneNames.size())
+                                       .arg(m_combinedData.sampleNames.size()));
+            }
+            else
+            {
+                addProgressMessage(QString("Failed to prepare count matrix automatically: %1")
+                                       .arg(m_combinedData.errorMessage));
+            }
+        }
+
+        if (m_workingDirectory.isEmpty())
+            m_workingDirectory = resolveWorkingDirectory();
+    }
+
+    void MainWindow::populateAutoDiscoveredFiles()
+    {
+        if (m_workingDirectory.isEmpty())
+            return;
+
+        QStringList sqliteInputs = discoverFiles(
+            QDir(m_workingDirectory).filePath("analyzed_files"),
+            {"*.sqlite", "*.db"});
+        sqliteInputs.erase(
+            std::remove_if(sqliteInputs.begin(), sqliteInputs.end(),
+                           [](const QString &path)
+                           {
+                               return QFileInfo(path).fileName().compare(
+                                          "statmaker_results.sqlite", Qt::CaseInsensitive) == 0;
+                           }),
+            sqliteInputs.end());
+
+        QStringList csvInputs;
+        if (sqliteInputs.isEmpty())
+        {
+            csvInputs = discoverFiles(
+                QDir(m_workingDirectory).filePath("gene_count_summary"),
+                {"*.csv"});
+        }
+
+        const QStringList inputFiles = !sqliteInputs.isEmpty() ? sqliteInputs : csvInputs;
+        if (inputFiles.isEmpty())
+        {
+            addProgressMessage("No GeneCount inputs were discovered in the working directory.");
+            return;
+        }
+
+        loadInputFiles(inputFiles, true);
+    }
+
+    void MainWindow::autoDetectJunctionFiles()
+    {
+        if (m_workingDirectory.isEmpty() || !m_junctionFilesEdit)
+            return;
+
+        QStringList junctionFiles = discoverFiles(
+            QDir(m_workingDirectory).filePath("analyzed_files"),
+            {"*.sqlite", "*.db"});
+        junctionFiles.erase(
+            std::remove_if(junctionFiles.begin(), junctionFiles.end(),
+                           [](const QString &path)
+                           {
+                               return QFileInfo(path).fileName().compare(
+                                          "statmaker_results.sqlite", Qt::CaseInsensitive) == 0;
+                           }),
+            junctionFiles.end());
+        junctionFiles.removeDuplicates();
+        std::sort(junctionFiles.begin(), junctionFiles.end());
+
+        if (!junctionFiles.isEmpty())
+        {
+            m_junctionFilesEdit->setText(joinPaths(junctionFiles));
+            addProgressMessage(QString("Auto-detected %1 junction SQLite file(s).").arg(junctionFiles.size()));
+        }
+    }
+
+    QString MainWindow::resolveWorkingDirectory() const
+    {
+        if (!m_workingDirectory.isEmpty())
+            return m_workingDirectory;
+
+        const auto &files = m_geneCountHandler->getGeneCountFiles();
+        if (files.isEmpty())
+            return m_lastUsedDirectory;
+
+        QDir dir(QFileInfo(files.first().filePath).absolutePath());
+        const QString dirName = dir.dirName();
+        if (dirName == "gene_count_summary" || dirName == "analyzed_files")
+            dir.cdUp();
+        return dir.absolutePath();
+    }
+
+    QString MainWindow::resultsDatabasePathForWorkdir(const QString &workdir) const
+    {
+        return QDir(workdir).filePath("analyzed_files/statmaker_results.sqlite");
+    }
+
+    void MainWindow::invalidatePlotCache()
+    {
+        m_lastPlotCacheKey.clear();
+        m_resultsRevision++;
     }
 
     void MainWindow::connectUiElements()
@@ -932,6 +1618,8 @@ namespace deseq2
             m_groupNameEdit->clear();
         }
 
+        m_resultsColumnsSized = false;
+        invalidatePlotCache();
         updateUiState();
         addProgressMessage("All data cleared.");
     }
@@ -1026,6 +1714,9 @@ namespace deseq2
 
         if (m_combinedData.isValid)
         {
+            if (m_workingDirectory.isEmpty())
+                m_workingDirectory = resolveWorkingDirectory();
+
             // Update preview tables with converted integer counts for count matrix
             updateCountsPreviewWithConvertedValues(m_countsPreviewTable, m_combinedData);
             m_geneCountHandler->updateMetadataPreviewTable(m_metadataPreviewTable, m_combinedData);
@@ -1095,7 +1786,7 @@ namespace deseq2
                                           "Files saved:\n"
                                           "• Count Matrix: %1_count_matrix.csv\n"
                                           "• Metadata: %1_metadata.csv\n\n"
-                                          "Both files are required for DESeq2 analysis.")
+                                          "Both files are required for StatMaker analysis.")
                                       .arg(fileInfo.baseName());
 
                 QMessageBox::information(static_cast<QWidget *>(this), "Export Successful", message);
@@ -1115,7 +1806,7 @@ namespace deseq2
                     message += "• Count Matrix\n";
                 if (!metadataSuccess)
                     message += "• Metadata\n";
-                message += "\nBoth files are required for DESeq2 analysis.";
+                message += "\nBoth files are required for StatMaker analysis.";
 
                 QMessageBox::warning(static_cast<QWidget *>(this), "Partial Export", message);
             }
@@ -1197,10 +1888,16 @@ namespace deseq2
 
         // Define patterns for auto-assignment based on the example files
         QMap<QString, QString> patterns;
-        patterns["SEL"] = "Selection";
-        patterns["NON"] = "Non-Selection";
-        patterns["_SEL_"] = "Selection";
-        patterns["_NON_"] = "Non-Selection";
+        patterns["NON"] = "Non-Selected";
+        patterns["non-selected"] = "Non-Selected";
+        patterns["nonselected"] = "Non-Selected";
+        patterns["_NON_"] = "Non-Selected";
+        patterns["SEL"] = "Selected";
+        patterns["selected"] = "Selected";
+        patterns["_SEL_"] = "Selected";
+        patterns["vector"] = "Vector Control";
+        patterns["control"] = "Vector Control";
+        patterns["bait"] = "Bait";
 
         int assignedCount = m_geneCountHandler->autoAssignGroups(patterns);
 
@@ -1245,50 +1942,13 @@ namespace deseq2
             return;
         }
 
-        addProgressMessage("Starting DESeq2 differential expression analysis...");
+        if (m_workingDirectory.isEmpty())
+            m_workingDirectory = resolveWorkingDirectory();
 
-        // Auto-detect junction SQLite files if not already specified (Task 4)
+        addProgressMessage(QString("Starting StatMaker analysis in %1").arg(resolveWorkingDirectory()));
+
         if (m_junctionFilesEdit && m_junctionFilesEdit->text().isEmpty())
-        {
-            if (!m_geneCountHandler->getGeneCountFiles().isEmpty())
-            {
-                QFileInfo firstFile(m_geneCountHandler->getGeneCountFiles().first().fileName);
-                QDir parentDir = firstFile.absoluteDir();
-                parentDir.cdUp(); // Go to parent of input directory
-
-                // Search for junction dice SQLite files
-                QStringList junctionPatterns = {"*jdice*.sqlite", "*.blat.sqlite"};
-                QStringList foundFiles;
-
-                for (const auto &pattern : junctionPatterns)
-                {
-                    QStringList matches = parentDir.entryList(QStringList() << pattern, QDir::Files);
-                    for (const auto &match : matches)
-                    {
-                        foundFiles.append(parentDir.absoluteFilePath(match));
-                    }
-                }
-
-                // Also check the input directory itself
-                QDir inputDir = firstFile.absoluteDir();
-                for (const auto &pattern : junctionPatterns)
-                {
-                    QStringList matches = inputDir.entryList(QStringList() << pattern, QDir::Files);
-                    for (const auto &match : matches)
-                    {
-                        QString fullPath = inputDir.absoluteFilePath(match);
-                        if (!foundFiles.contains(fullPath))
-                            foundFiles.append(fullPath);
-                    }
-                }
-
-                if (!foundFiles.isEmpty())
-                {
-                    m_junctionFilesEdit->setText(foundFiles.join("; "));
-                    addProgressMessage(QString("Auto-detected %1 junction SQLite file(s).").arg(foundFiles.size()));
-                }
-            }
-        }
+            autoDetectJunctionFiles();
 
         // Populate the contrast selector for three-way comparisons (Task 5)
         if (m_contrastSelectorCombo && uniqueGroups.size() >= 3)
@@ -1337,7 +1997,15 @@ namespace deseq2
         }
 
         // Get analysis parameters
-        double pValueThreshold = m_pValueThresholdSpinBox ? m_pValueThresholdSpinBox->value() : 0.05;
+        AnalysisRunConfig config;
+        config.pValueThreshold = m_pValueThresholdSpinBox ? m_pValueThresholdSpinBox->value() : 0.05;
+        config.ppmThreshold = m_ppmThresholdSpinBox_y2h ? m_ppmThresholdSpinBox_y2h->value() : 0.0;
+        config.enrichmentPValueThreshold = m_enrichPvalSpinBox ? m_enrichPvalSpinBox->value() : 1.0;
+        config.enrichmentFoldChangeThreshold = m_enrichFcSpinBox ? m_enrichFcSpinBox->value() : 0.0;
+        config.specificityPValueThreshold = m_specPvalSpinBox ? m_specPvalSpinBox->value() : 1.0;
+        config.baitGroupSize = 10;
+        config.junctionFiles = m_junctionFilesEdit ? splitPaths(m_junctionFilesEdit->text()) : QStringList{};
+        config.workingDirectory = resolveWorkingDirectory();
 
         // Update UI state
         if (m_runAnalysisButton)
@@ -1357,7 +2025,7 @@ namespace deseq2
         }
 
         // Create worker and thread
-        m_analysisWorker = std::make_unique<AnalysisWorker>(m_combinedData, pValueThreshold);
+        m_analysisWorker = std::make_unique<AnalysisWorker>(m_combinedData, config);
         m_analysisThread = std::make_unique<QThread>();
 
         // Move worker to thread
@@ -1436,6 +2104,9 @@ namespace deseq2
         m_analysisResults.isValid = false;
         m_analysisResults.results = Eigen::MatrixXd();
         m_analysisResults.geneNames.clear();
+        m_resultsSqlitePath.clear();
+        m_resultsColumnsSized = false;
+        invalidatePlotCache();
 
         // Clear results table
         if (m_resultsTable)
@@ -1459,49 +2130,36 @@ namespace deseq2
         addProgressMessage(message);
     }
 
-    void MainWindow::onAnalysisFinished(AnalysisResults *results)
+    void MainWindow::onAnalysisFinished(const AnalysisResults &results)
     {
-        addProgressMessage("=== ANALYSIS FINISHED CALLED ===");
-        addProgressMessage("Results pointer: " + QString(results ? "VALID" : "NULL"));
-
-        if (!results)
+        QString validationError;
+        if (!validateAnalysisResults(results, &validationError))
         {
-            addProgressMessage("ERROR: Results pointer is null!");
+            onAnalysisError(QString("Analysis completed with invalid results: %1").arg(validationError));
             return;
         }
 
-        addProgressMessage("Results valid: " + QString(results->isValid ? "YES" : "NO"));
-        addProgressMessage("Total genes: " + QString::number(results->totalGenes));
-        addProgressMessage("Significant genes: " + QString::number(results->significantGenes));
-        addProgressMessage("Matrix size: " + QString::number(results->results.rows()) + "x" + QString::number(results->results.cols()));
-        addProgressMessage("Gene names count: " + QString::number(results->geneNames.size()));
-
         // Store results
-        m_analysisResults = *results;
+        m_analysisResults = results;
+        invalidatePlotCache();
+        m_resultsColumnsSized = false;
 
         // Update UI
-        addProgressMessage("About to update results table...");
-        updateResultsTable(*results);
-        addProgressMessage("About to update results summary...");
-        updateResultsSummary(*results);
+        updateResultsTable(results);
+        updateResultsSummary(results);
 
         // Switch to results tab
         if (m_tabWidget)
         {
             m_tabWidget->setCurrentIndex(1); // Results tab (FIXED: was 2, should be 1)
-            addProgressMessage("Switched to results tab");
-        }
-        else
-        {
-            addProgressMessage("ERROR: m_tabWidget is null!");
         }
 
         addProgressMessage(QString("Analysis completed! Found %1 significant genes out of %2 total genes.")
-                               .arg(results->significantGenes)
-                               .arg(results->totalGenes));
+                               .arg(results.significantGenes)
+                               .arg(results.totalGenes));
 
         // Write results to SQLite
-        writeResultsToSqlite(*results);
+        writeResultsToSqlite(results);
 
         // Refresh visualization plot with new results
         refreshPlot();
@@ -1509,104 +2167,414 @@ namespace deseq2
 
     void MainWindow::writeResultsToSqlite(const AnalysisResults &results)
     {
-        // Determine output path from the first input file's directory
-        QString outputPath;
-        if (!m_geneCountHandler->getGeneCountFiles().isEmpty()) {
-            QFileInfo fi(m_geneCountHandler->getGeneCountFiles().first().fileName);
-            outputPath = fi.absolutePath() + "/deseq2_results.sqlite";
-        } else {
-            outputPath = m_lastUsedDirectory + "/deseq2_results.sqlite";
-        }
+        QElapsedTimer timer;
+        timer.start();
+
+        const QString workdir = resolveWorkingDirectory();
+        QDir baseDir(workdir.isEmpty() ? m_lastUsedDirectory : workdir);
+        if (!baseDir.exists())
+            baseDir.mkpath(".");
+        if (!baseDir.exists("analyzed_files"))
+            baseDir.mkpath("analyzed_files");
+
+        const QString outputPath = resultsDatabasePathForWorkdir(baseDir.absolutePath());
         m_resultsSqlitePath = outputPath;
 
-        QString connName = "deseq2_results_write";
+        const QString activeBait = results.activeContrastLabel.section(" vs ", 0, 0).trimmed();
+        auto baitMatches = [&](const std::string &bait)
+        {
+            return activeBait.isEmpty() || QString::fromStdString(bait).compare(activeBait, Qt::CaseInsensitive) == 0;
+        };
+
+        QString connName = QString("statmaker_results_write_%1").arg(QUuid::createUuid().toString(QUuid::Id128));
+        bool opened = false;
         {
             QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connName);
             db.setDatabaseName(outputPath);
-            if (!db.open()) {
+            opened = db.open();
+            if (!opened)
+            {
                 addProgressMessage("Error: cannot write results to " + outputPath);
-                return;
             }
+            if (opened)
+            {
+                QSqlQuery q(db);
+                q.exec("PRAGMA journal_mode = WAL");
+                q.exec("DROP TABLE IF EXISTS analysis_results");
+                q.exec("DROP TABLE IF EXISTS analysis_summary");
+                q.exec("DROP TABLE IF EXISTS contrasts");
+                q.exec("DROP TABLE IF EXISTS run_parameters");
+                q.exec("DROP TABLE IF EXISTS input_files");
+                q.exec("CREATE TABLE analysis_results ("
+                       "gene TEXT PRIMARY KEY, "
+                       "bait TEXT, "
+                       "base_mean REAL, "
+                       "log2_fold_change REAL, "
+                       "lfc_se REAL, "
+                       "stat REAL, "
+                       "pvalue REAL, "
+                       "padj REAL, "
+                       "enrichment_call TEXT, "
+                       "enrichment_score REAL, "
+                       "specificity_score REAL, "
+                       "in_frame_score REAL, "
+                       "borda_score REAL, "
+                       "in_frame_transcripts TEXT, "
+                       "active_contrast_label TEXT, "
+                       "created_at TEXT)");
+                q.exec("CREATE TABLE analysis_summary (key TEXT PRIMARY KEY, value TEXT)");
+                q.exec("CREATE TABLE contrasts (contrast_index INTEGER PRIMARY KEY, label TEXT, is_active INTEGER)");
+                q.exec("CREATE TABLE run_parameters (key TEXT PRIMARY KEY, value TEXT)");
+                q.exec("CREATE TABLE input_files ("
+                       "path TEXT PRIMARY KEY, "
+                       "sample_name TEXT, "
+                       "group_name TEXT)");
 
-            QSqlQuery q(db);
-            q.exec("DROP TABLE IF EXISTS deseq2_results");
-            q.exec("CREATE TABLE deseq2_results ("
-                   "gene TEXT PRIMARY KEY, "
-                   "base_mean REAL, "
-                   "log2_fold_change REAL, "
-                   "lfc_se REAL, "
-                   "stat REAL, "
-                   "pvalue REAL, "
-                   "padj REAL, "
-                   "enrichment TEXT, "
-                   "enrichment_score REAL, "
-                   "borda_score REAL)");
-
-            // Build lookup maps from Y2H-SCORES results by gene name
-            std::map<std::string, double> enrichmentScoreMap;
-            for (const auto &er : results.enrichmentScores) {
-                enrichmentScoreMap[er.gene] = er.total_score;
-            }
-            std::map<std::string, double> bordaScoreMap;
-            for (const auto &y2h : results.y2hScores) {
-                bordaScoreMap[y2h.gene] = y2h.borda_score;
-            }
-
-            db.transaction();
-            q.prepare("INSERT INTO deseq2_results VALUES "
-                      "(:gene, :basemean, :lfc, :se, :stat, :pval, :padj, :enrich, "
-                      ":enrichment_score, :borda_score)");
-
-            for (int i = 0; i < results.results.rows(); i++) {
-                double padj = results.results(i, 5);
-                double lfc = results.results(i, 1);
-                QString enrichment = "ns";
-                if (!std::isnan(padj) && padj < results.pValueThreshold) {
-                    enrichment = (lfc > 0) ? "enriched" : "depleted";
+                // Build lookup maps from Y2H-SCORES results by gene name
+                std::map<std::string, double> enrichmentScoreMap;
+                for (const auto &er : results.enrichmentScores)
+                {
+                    if (baitMatches(er.bait))
+                        enrichmentScoreMap[er.gene] = er.total_score;
+                }
+                std::map<std::string, double> specificityScoreMap;
+                for (const auto &spec : results.specificityScores)
+                {
+                    if (baitMatches(spec.bait))
+                        specificityScoreMap[spec.gene] = spec.total_score;
+                }
+                std::map<std::string, double> inFrameScoreMap;
+                std::map<std::string, QString> inFrameTranscriptMap;
+                for (const auto &inFrame : results.inFrameScores)
+                {
+                    if (baitMatches(inFrame.bait))
+                    {
+                        inFrameScoreMap[inFrame.gene] = inFrame.freq_score;
+                        inFrameTranscriptMap[inFrame.gene] = QString::fromStdString(inFrame.transcripts);
+                    }
+                }
+                std::map<std::string, double> bordaScoreMap;
+                for (const auto &y2h : results.y2hScores)
+                {
+                    if (baitMatches(y2h.bait))
+                    {
+                        bordaScoreMap[y2h.gene] = y2h.borda_score;
+                        if (!QString::fromStdString(y2h.in_frame_transcripts).isEmpty())
+                            inFrameTranscriptMap[y2h.gene] = QString::fromStdString(y2h.in_frame_transcripts);
+                    }
                 }
 
-                const std::string &geneName = results.geneNames[i];
-                double escore = 0.0;
-                auto esIt = enrichmentScoreMap.find(geneName);
-                if (esIt != enrichmentScoreMap.end()) {
-                    escore = esIt->second;
-                }
-                double bscore = 0.0;
-                auto bsIt = bordaScoreMap.find(geneName);
-                if (bsIt != bordaScoreMap.end()) {
-                    bscore = bsIt->second;
+                db.transaction();
+                q.prepare("INSERT INTO analysis_results VALUES "
+                          "(:gene, :bait, :basemean, :lfc, :se, :stat, :pval, :padj, :enrich_call, "
+                          ":enrichment_score, :specificity_score, :in_frame_score, :borda_score, "
+                          ":in_frame_transcripts, :active_contrast_label, :created_at)");
+
+                for (int i = 0; i < results.results.rows(); i++)
+                {
+                    double padj = results.results(i, 5);
+                    double lfc = results.results(i, 1);
+                    QString enrichment = "NS";
+                    if (!std::isnan(padj) && padj < results.pValueThreshold)
+                    {
+                        enrichment = (lfc > 0) ? "Enriched" : "Depleted";
+                    }
+
+                    const std::string &geneName = results.geneNames[i];
+                    double escore = 0.0;
+                    auto esIt = enrichmentScoreMap.find(geneName);
+                    if (esIt != enrichmentScoreMap.end())
+                    {
+                        escore = esIt->second;
+                    }
+                    double specScore = 0.0;
+                    auto specIt = specificityScoreMap.find(geneName);
+                    if (specIt != specificityScoreMap.end())
+                        specScore = specIt->second;
+                    double ifScore = 0.0;
+                    auto ifIt = inFrameScoreMap.find(geneName);
+                    if (ifIt != inFrameScoreMap.end())
+                        ifScore = ifIt->second;
+                    double bscore = 0.0;
+                    auto bsIt = bordaScoreMap.find(geneName);
+                    if (bsIt != bordaScoreMap.end())
+                    {
+                        bscore = bsIt->second;
+                    }
+
+                    q.bindValue(":gene", sanitizeGeneName(geneName));
+                    q.bindValue(":bait", activeBait);
+                    q.bindValue(":basemean", results.results(i, 0));
+                    q.bindValue(":lfc", lfc);
+                    q.bindValue(":se", results.results(i, 2));
+                    q.bindValue(":stat", results.results(i, 3));
+                    q.bindValue(":pval", results.results(i, 4));
+                    q.bindValue(":padj", padj);
+                    q.bindValue(":enrich_call", enrichment);
+                    q.bindValue(":enrichment_score", escore);
+                    q.bindValue(":specificity_score", specScore);
+                    q.bindValue(":in_frame_score", ifScore);
+                    q.bindValue(":borda_score", bscore);
+                    q.bindValue(":in_frame_transcripts",
+                                inFrameTranscriptMap.count(geneName)
+                                    ? inFrameTranscriptMap[geneName]
+                                    : QString());
+                    q.bindValue(":active_contrast_label", results.activeContrastLabel);
+                    q.bindValue(":created_at", results.createdAt);
+                    q.exec();
                 }
 
-                q.bindValue(":gene", QString::fromStdString(geneName));
-                q.bindValue(":basemean", results.results(i, 0));
-                q.bindValue(":lfc", lfc);
-                q.bindValue(":se", results.results(i, 2));
-                q.bindValue(":stat", results.results(i, 3));
-                q.bindValue(":pval", results.results(i, 4));
-                q.bindValue(":padj", padj);
-                q.bindValue(":enrich", enrichment);
-                q.bindValue(":enrichment_score", escore);
-                q.bindValue(":borda_score", bscore);
-                q.exec();
+                // Summary table
+                q.prepare("INSERT INTO analysis_summary VALUES (:key, :value)");
+                q.bindValue(":key", "total_genes"); q.bindValue(":value", QString::number(results.totalGenes)); q.exec();
+                q.bindValue(":key", "significant_genes"); q.bindValue(":value", QString::number(results.significantGenes)); q.exec();
+                q.bindValue(":key", "upregulated"); q.bindValue(":value", QString::number(results.upregulatedGenes)); q.exec();
+                q.bindValue(":key", "downregulated"); q.bindValue(":value", QString::number(results.downregulatedGenes)); q.exec();
+                q.bindValue(":key", "pvalue_threshold"); q.bindValue(":value", QString::number(results.pValueThreshold)); q.exec();
+                q.bindValue(":key", "active_contrast_label"); q.bindValue(":value", results.activeContrastLabel); q.exec();
+                q.bindValue(":key", "working_directory"); q.bindValue(":value", baseDir.absolutePath()); q.exec();
+
+                q.prepare("INSERT INTO contrasts VALUES (:idx, :label, :active)");
+                for (int idx = 0; idx < static_cast<int>(results.contrastLabels.size()); ++idx)
+                {
+                    q.bindValue(":idx", idx);
+                    q.bindValue(":label", QString::fromStdString(results.contrastLabels[idx]));
+                    q.bindValue(":active", idx == results.activeContrast ? 1 : 0);
+                    q.exec();
+                }
+
+                q.prepare("INSERT INTO run_parameters VALUES (:key, :value)");
+                q.bindValue(":key", "output_path"); q.bindValue(":value", outputPath); q.exec();
+                q.bindValue(":key", "created_at"); q.bindValue(":value", results.createdAt); q.exec();
+                q.bindValue(":key", "active_bait"); q.bindValue(":value", activeBait); q.exec();
+                q.bindValue(":key", "junction_files"); q.bindValue(":value", m_junctionFilesEdit ? m_junctionFilesEdit->text() : QString()); q.exec();
+
+                q.prepare("INSERT INTO input_files VALUES (:path, :sample_name, :group_name)");
+                for (const auto &inputFile : m_geneCountHandler->getGeneCountFiles())
+                {
+                    q.bindValue(":path", inputFile.filePath);
+                    q.bindValue(":sample_name", inputFile.sampleName);
+                    q.bindValue(":group_name", inputFile.groupName);
+                    q.exec();
+                }
+
+                db.commit();
+                q.clear();
+                db.close();
             }
-
-            // Summary table
-            q.exec("DROP TABLE IF EXISTS analysis_summary");
-            q.exec("CREATE TABLE analysis_summary (key TEXT PRIMARY KEY, value TEXT)");
-            q.prepare("INSERT INTO analysis_summary VALUES (:key, :value)");
-            q.bindValue(":key", "total_genes"); q.bindValue(":value", QString::number(results.totalGenes)); q.exec();
-            q.bindValue(":key", "significant_genes"); q.bindValue(":value", QString::number(results.significantGenes)); q.exec();
-            q.bindValue(":key", "upregulated"); q.bindValue(":value", QString::number(results.upregulatedGenes)); q.exec();
-            q.bindValue(":key", "downregulated"); q.bindValue(":value", QString::number(results.downregulatedGenes)); q.exec();
-            q.bindValue(":key", "pvalue_threshold"); q.bindValue(":value", QString::number(results.pValueThreshold)); q.exec();
-
-            db.commit();
-            q.clear();
-            db.close();
         }
         QSqlDatabase::removeDatabase(connName);
 
-        addProgressMessage("Results saved to: " + outputPath);
+        if (!opened)
+            return;
+
+        addProgressMessage(QString("Results saved to %1 (%2 ms)").arg(outputPath).arg(timer.elapsed()));
+    }
+
+    bool MainWindow::loadResultsFromSqlite(const QString &sqlitePath)
+    {
+        if (!QFile::exists(sqlitePath))
+            return false;
+
+        QElapsedTimer timer;
+        timer.start();
+
+        AnalysisResults loadedResults;
+        loadedResults.pValueThreshold = m_pValueThresholdSpinBox ? m_pValueThresholdSpinBox->value() : 0.05;
+        loadedResults.log2FCThreshold = m_log2FCThresholdSpinBox ? m_log2FCThresholdSpinBox->value() : 0.0;
+        std::vector<std::array<double, kDeseqColumnCount>> rows;
+
+        const QString connName = QString("statmaker_results_read_%1").arg(QUuid::createUuid().toString(QUuid::Id128));
+        bool opened = false;
+        bool queryOk = false;
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connName);
+            db.setDatabaseName(sqlitePath);
+            db.setConnectOptions("QSQLITE_OPEN_READONLY");
+            opened = db.open();
+            if (opened)
+            {
+                QSqlQuery q(db);
+                queryOk = q.exec("SELECT gene, bait, base_mean, log2_fold_change, lfc_se, stat, pvalue, padj, "
+                                 "enrichment_score, specificity_score, in_frame_score, borda_score, "
+                                 "in_frame_transcripts, active_contrast_label, created_at "
+                                 "FROM analysis_results ORDER BY padj ASC, gene ASC");
+                if (queryOk)
+                {
+                    while (q.next())
+                    {
+                        const QString gene = q.value(0).toString();
+                        const QString bait = q.value(1).toString();
+
+                        rows.push_back({{
+                            q.value(2).toDouble(),
+                            q.value(3).toDouble(),
+                            q.value(4).toDouble(),
+                            q.value(5).toDouble(),
+                            q.value(6).toDouble(),
+                            q.value(7).toDouble(),
+                        }});
+                        loadedResults.geneNames.push_back(gene.toStdString());
+
+                        EnrichmentResult enrichment;
+                        enrichment.gene = gene.toStdString();
+                        enrichment.bait = bait.toStdString();
+                        enrichment.total_score = q.value(8).toDouble();
+                        if (enrichment.total_score > 0.0)
+                            loadedResults.enrichmentScores.push_back(enrichment);
+
+                        SpecificityResult specificity;
+                        specificity.gene = gene.toStdString();
+                        specificity.bait = bait.toStdString();
+                        specificity.total_score = q.value(9).toDouble();
+                        if (specificity.total_score > 0.0)
+                            loadedResults.specificityScores.push_back(specificity);
+
+                        InFrameResult inFrame;
+                        inFrame.gene = gene.toStdString();
+                        inFrame.bait = bait.toStdString();
+                        inFrame.freq_score = q.value(10).toDouble();
+                        inFrame.transcripts = q.value(12).toString().toStdString();
+                        if (inFrame.freq_score > 0.0 || !inFrame.transcripts.empty())
+                            loadedResults.inFrameScores.push_back(inFrame);
+
+                        Y2HScore y2h;
+                        y2h.gene = gene.toStdString();
+                        y2h.bait = bait.toStdString();
+                        y2h.enrichment_score = enrichment.total_score;
+                        y2h.specificity_score = specificity.total_score;
+                        y2h.in_frame_score = inFrame.freq_score;
+                        y2h.in_frame_transcripts = inFrame.transcripts;
+                        y2h.borda_score = q.value(11).toDouble();
+                        y2h.sum_scores =
+                            y2h.enrichment_score + y2h.specificity_score + y2h.in_frame_score;
+                        if (y2h.borda_score > 0.0)
+                            loadedResults.y2hScores.push_back(y2h);
+
+                        if (loadedResults.activeContrastLabel.isEmpty())
+                            loadedResults.activeContrastLabel = q.value(13).toString();
+                        if (loadedResults.createdAt.isEmpty())
+                            loadedResults.createdAt = q.value(14).toString();
+                    }
+                    q.clear();
+
+                    loadedResults.results = Eigen::MatrixXd(static_cast<int>(rows.size()), kDeseqColumnCount);
+                    for (int row = 0; row < static_cast<int>(rows.size()); ++row)
+                    {
+                        for (int col = 0; col < kDeseqColumnCount; ++col)
+                            loadedResults.results(row, col) = rows[row][col];
+                    }
+
+                    if (q.exec("SELECT key, value FROM analysis_summary"))
+                    {
+                        while (q.next())
+                        {
+                            const QString key = q.value(0).toString();
+                            const QString value = q.value(1).toString();
+                            if (key == "total_genes")
+                                loadedResults.totalGenes = value.toInt();
+                            else if (key == "significant_genes")
+                                loadedResults.significantGenes = value.toInt();
+                            else if (key == "upregulated")
+                                loadedResults.upregulatedGenes = value.toInt();
+                            else if (key == "downregulated")
+                                loadedResults.downregulatedGenes = value.toInt();
+                            else if (key == "pvalue_threshold")
+                                loadedResults.pValueThreshold = value.toDouble();
+                            else if (key == "active_contrast_label" && loadedResults.activeContrastLabel.isEmpty())
+                                loadedResults.activeContrastLabel = value;
+                        }
+                    }
+                    q.clear();
+
+                    if (q.exec("SELECT contrast_index, label, is_active FROM contrasts ORDER BY contrast_index"))
+                    {
+                        while (q.next())
+                        {
+                            loadedResults.contrastLabels.push_back(q.value(1).toString().toStdString());
+                            if (q.value(2).toInt() == 1)
+                            {
+                                loadedResults.activeContrast = q.value(0).toInt();
+                                loadedResults.activeContrastLabel = q.value(1).toString();
+                            }
+                        }
+                    }
+                    q.clear();
+                }
+                db.close();
+            }
+        }
+        QSqlDatabase::removeDatabase(connName);
+
+        if (!opened || !queryOk)
+            return false;
+
+        loadedResults.totalGenes = loadedResults.totalGenes > 0 ? loadedResults.totalGenes : loadedResults.results.rows();
+        loadedResults.isValid = loadedResults.results.rows() > 0 && loadedResults.geneNames.size() == static_cast<size_t>(loadedResults.results.rows());
+        loadedResults.errorMessage.clear();
+
+        QString validationError;
+        if (!validateAnalysisResults(loadedResults, &validationError))
+        {
+            addProgressMessage(QString("Existing StatMaker results were ignored: %1").arg(validationError));
+            return false;
+        }
+
+        m_resultsSqlitePath = sqlitePath;
+        m_analysisResults = loadedResults;
+        invalidatePlotCache();
+        m_resultsColumnsSized = false;
+        updateResultsTable(m_analysisResults);
+        updateResultsSummary(m_analysisResults);
+        addProgressMessage(QString("Loaded previous StatMaker results from %1 (%2 ms)")
+                               .arg(sqlitePath)
+                               .arg(timer.elapsed()));
+        return true;
+    }
+
+    bool MainWindow::validateAnalysisResults(const AnalysisResults &results, QString *errorMessage) const
+    {
+        if (!results.isValid)
+        {
+            if (errorMessage)
+                *errorMessage = results.errorMessage.isEmpty()
+                                    ? QStringLiteral("Results are marked invalid.")
+                                    : results.errorMessage;
+            return false;
+        }
+
+        if (results.results.rows() <= 0 || results.results.cols() < kDeseqColumnCount)
+        {
+            if (errorMessage)
+                *errorMessage = QStringLiteral("Result matrix is empty or malformed.");
+            return false;
+        }
+
+        if (results.geneNames.size() != static_cast<size_t>(results.results.rows()))
+        {
+            if (errorMessage)
+            {
+                *errorMessage = QStringLiteral("Gene name count (%1) does not match result rows (%2).")
+                                    .arg(results.geneNames.size())
+                                    .arg(results.results.rows());
+            }
+            return false;
+        }
+
+        for (size_t idx = 0; idx < results.geneNames.size(); ++idx)
+        {
+            if (geneNameHasInvalidBytes(results.geneNames[idx]))
+            {
+                if (errorMessage)
+                {
+                    *errorMessage = QStringLiteral("Invalid control bytes detected in gene name at row %1.")
+                                        .arg(static_cast<qulonglong>(idx));
+                }
+                return false;
+            }
+        }
+
+        return true;
     }
 
     void MainWindow::onAnalysisError(const QString &errorMessage)
@@ -1641,39 +2609,75 @@ namespace deseq2
 
     void MainWindow::updateResultsTable(const AnalysisResults &results)
     {
-        addProgressMessage("updateResultsTable called");
-        addProgressMessage("m_resultsTable: " + QString(m_resultsTable ? "VALID" : "NULL"));
-        addProgressMessage("results.isValid: " + QString(results.isValid ? "YES" : "NO"));
-
         if (!m_resultsTable || !results.isValid)
         {
-            addProgressMessage("updateResultsTable: Early return - table or results invalid");
             return;
         }
 
-        addProgressMessage("updateResultsTable: Proceeding with table update");
+        QElapsedTimer timer;
+        timer.start();
 
         const auto &matrix = results.results;
         const auto &geneNames = results.geneNames;
+        const QString activeBait = results.activeContrastLabel.section(" vs ", 0, 0).trimmed();
+        auto baitMatches = [&](const std::string &bait)
+        {
+            return activeBait.isEmpty() || QString::fromStdString(bait).compare(activeBait, Qt::CaseInsensitive) == 0;
+        };
+
+        std::map<std::string, double> enrichmentScoreMap;
+        for (const auto &entry : results.enrichmentScores)
+        {
+            if (baitMatches(entry.bait))
+                enrichmentScoreMap[entry.gene] = entry.total_score;
+        }
+        std::map<std::string, double> specificityScoreMap;
+        for (const auto &entry : results.specificityScores)
+        {
+            if (baitMatches(entry.bait))
+                specificityScoreMap[entry.gene] = entry.total_score;
+        }
+        std::map<std::string, double> inFrameScoreMap;
+        std::map<std::string, QString> inFrameTranscriptMap;
+        for (const auto &entry : results.inFrameScores)
+        {
+            if (baitMatches(entry.bait))
+            {
+                inFrameScoreMap[entry.gene] = entry.freq_score;
+                inFrameTranscriptMap[entry.gene] = QString::fromStdString(entry.transcripts);
+            }
+        }
+        std::map<std::string, double> bordaScoreMap;
+        for (const auto &entry : results.y2hScores)
+        {
+            if (baitMatches(entry.bait))
+            {
+                bordaScoreMap[entry.gene] = entry.borda_score;
+                if (!QString::fromStdString(entry.in_frame_transcripts).isEmpty())
+                    inFrameTranscriptMap[entry.gene] = QString::fromStdString(entry.in_frame_transcripts);
+            }
+        }
 
         // Setup table
-        addProgressMessage("Setting table dimensions: " + QString::number(matrix.rows()) + " rows, 7 columns");
+        m_resultsTable->setSortingEnabled(false);
+        m_resultsTable->clearContents();
         m_resultsTable->setRowCount(matrix.rows());
-        m_resultsTable->setColumnCount(7); // Gene name + 6 columns from DESeq2
+        m_resultsTable->setColumnCount(13);
 
         // Set column headers
         QStringList headers;
-        headers << "Gene" << "baseMean" << "log2FoldChange" << "lfcSE" << "stat" << "pvalue" << "padj";
+        headers << "Gene" << "baseMean" << "log2FoldChange" << "lfcSE" << "stat" << "pvalue" << "padj"
+                << "Enrichment Call" << "Enrichment Score" << "Specificity Score"
+                << "In-Frame Score" << "Borda Score" << "In-Frame Transcripts";
         m_resultsTable->setHorizontalHeaderLabels(headers);
-        addProgressMessage("Set table headers");
-
-        // Populate table
-        addProgressMessage("Starting to populate table with " + QString::number(matrix.rows()) + " rows");
 
         for (int row = 0; row < matrix.rows(); ++row)
         {
+            const std::string &geneKey = geneNames[row];
+            const QString geneDisplay = sanitizeGeneName(geneKey);
+
             // Gene name
-            QTableWidgetItem *geneItem = new QTableWidgetItem(QString::fromStdString(geneNames[row]));
+            QTableWidgetItem *geneItem = new QTableWidgetItem(geneDisplay);
             geneItem->setFlags(geneItem->flags() & ~Qt::ItemIsEditable);
             m_resultsTable->setItem(row, 0, geneItem);
 
@@ -1692,28 +2696,70 @@ namespace deseq2
                 m_resultsTable->setItem(row, col + 1, item);
             }
 
+            const double padj = matrix(row, 5);
+            const double lfc = matrix(row, 1);
+            QString enrichmentCall = "NS";
+            if (!std::isnan(padj) && padj < results.pValueThreshold)
+                enrichmentCall = lfc > 0 ? "Enriched" : "Depleted";
+
+            auto makeReadOnlyItem = [](const QString &value)
+            {
+                QTableWidgetItem *item = new QTableWidgetItem(value);
+                item->setFlags(item->flags() & ~Qt::ItemIsEditable);
+                return item;
+            };
+
+            const auto enrichmentIt = enrichmentScoreMap.find(geneKey);
+            const auto specificityIt = specificityScoreMap.find(geneKey);
+            const auto inFrameIt = inFrameScoreMap.find(geneKey);
+            const auto bordaIt = bordaScoreMap.find(geneKey);
+            const auto transcriptsIt = inFrameTranscriptMap.find(geneKey);
+
+            m_resultsTable->setItem(row, kResultsColumnEnrichmentCall, makeReadOnlyItem(enrichmentCall));
+            m_resultsTable->setItem(row, kResultsColumnEnrichmentScore,
+                                    makeReadOnlyItem(enrichmentIt != enrichmentScoreMap.end()
+                                                         ? QString::number(enrichmentIt->second, 'g', 6)
+                                                         : QString()));
+            m_resultsTable->setItem(row, kResultsColumnSpecificityScore,
+                                    makeReadOnlyItem(specificityIt != specificityScoreMap.end()
+                                                         ? QString::number(specificityIt->second, 'g', 6)
+                                                         : QString()));
+            m_resultsTable->setItem(row, kResultsColumnInFrameScore,
+                                    makeReadOnlyItem(inFrameIt != inFrameScoreMap.end()
+                                                         ? QString::number(inFrameIt->second, 'g', 6)
+                                                         : QString()));
+            m_resultsTable->setItem(row, kResultsColumnBordaScore,
+                                    makeReadOnlyItem(bordaIt != bordaScoreMap.end()
+                                                         ? QString::number(bordaIt->second, 'g', 6)
+                                                         : QString()));
+            m_resultsTable->setItem(row, kResultsColumnInFrameTranscripts,
+                                    makeReadOnlyItem(transcriptsIt != inFrameTranscriptMap.end()
+                                                         ? transcriptsIt->second
+                                                         : QString()));
+
             // Progress update every 1000 rows
             if (row % 1000 == 0 && row > 0)
             {
-                addProgressMessage("Populated " + QString::number(row) + " rows...");
+                addProgressMessage(QString("Populated %1/%2 result rows...")
+                                       .arg(row)
+                                       .arg(matrix.rows()));
             }
         }
 
-        addProgressMessage("Finished populating table");
-
-        // Auto-resize columns
-        addProgressMessage("Resizing columns...");
-        m_resultsTable->resizeColumnsToContents();
+        if (!m_resultsColumnsSized || matrix.rows() <= 2000)
+        {
+            m_resultsTable->resizeColumnsToContents();
+            m_resultsColumnsSized = true;
+        }
 
         // Enable sorting
-        addProgressMessage("Enabling sorting...");
         m_resultsTable->setSortingEnabled(true);
 
         // Sort by adjusted p-value by default
-        addProgressMessage("Sorting by adjusted p-value...");
-        m_resultsTable->sortItems(6, Qt::AscendingOrder);
-
-        addProgressMessage("updateResultsTable completed successfully!");
+        m_resultsTable->sortItems(kResultsColumnPadj, Qt::AscendingOrder);
+        addProgressMessage(QString("Results table updated in %1 ms (%2 rows)")
+                               .arg(timer.elapsed())
+                               .arg(matrix.rows()));
     }
 
     void MainWindow::updateResultsSummary(const AnalysisResults &results)
@@ -1827,7 +2873,7 @@ namespace deseq2
         QString fileName = QFileDialog::getSaveFileName(
             this,
             "Export Results",
-            m_lastUsedDirectory + "/deseq2_results.csv",
+            m_lastUsedDirectory + "/statmaker_results.csv",
             "CSV Files (*.csv);;All Files (*)");
 
         if (!fileName.isEmpty())
@@ -1857,7 +2903,7 @@ namespace deseq2
         QString fileName = QFileDialog::getSaveFileName(
             this,
             "Save Significant Genes",
-            m_lastUsedDirectory + "/significant_genes.csv",
+            m_lastUsedDirectory + "/statmaker_significant_genes.csv",
             "CSV Files (*.csv);;All Files (*)");
 
         if (!fileName.isEmpty())
@@ -1909,7 +2955,7 @@ namespace deseq2
     bool MainWindow::exportResultsToCSV(const QString &filePath, const AnalysisResults &results, bool significantOnly)
     {
         // Export from SQLite if available, otherwise from memory
-        if (!m_resultsSqlitePath.isEmpty() && QFile::exists(m_resultsSqlitePath)) {
+        if (!results.isValid && !m_resultsSqlitePath.isEmpty() && QFile::exists(m_resultsSqlitePath)) {
             return exportSqliteToCSV(filePath, significantOnly);
         }
 
@@ -1918,7 +2964,47 @@ namespace deseq2
             return false;
 
         QTextStream stream(&file);
-        stream << "Gene,baseMean,log2FoldChange,lfcSE,stat,pvalue,padj,enrichment\n";
+        stream << "Gene,baseMean,log2FoldChange,lfcSE,stat,pvalue,padj,enrichment_call,"
+                  "enrichment_score,specificity_score,in_frame_score,borda_score,in_frame_transcripts,"
+                  "active_contrast_label,created_at\n";
+
+        const QString activeBait = results.activeContrastLabel.section(" vs ", 0, 0).trimmed();
+        auto baitMatches = [&](const std::string &bait)
+        {
+            return activeBait.isEmpty() || QString::fromStdString(bait).compare(activeBait, Qt::CaseInsensitive) == 0;
+        };
+        std::map<std::string, double> enrichmentScoreMap;
+        for (const auto &entry : results.enrichmentScores)
+        {
+            if (baitMatches(entry.bait))
+                enrichmentScoreMap[entry.gene] = entry.total_score;
+        }
+        std::map<std::string, double> specificityScoreMap;
+        for (const auto &entry : results.specificityScores)
+        {
+            if (baitMatches(entry.bait))
+                specificityScoreMap[entry.gene] = entry.total_score;
+        }
+        std::map<std::string, double> inFrameScoreMap;
+        std::map<std::string, QString> inFrameTranscriptMap;
+        for (const auto &entry : results.inFrameScores)
+        {
+            if (baitMatches(entry.bait))
+            {
+                inFrameScoreMap[entry.gene] = entry.freq_score;
+                inFrameTranscriptMap[entry.gene] = QString::fromStdString(entry.transcripts);
+            }
+        }
+        std::map<std::string, double> bordaScoreMap;
+        for (const auto &entry : results.y2hScores)
+        {
+            if (baitMatches(entry.bait))
+            {
+                bordaScoreMap[entry.gene] = entry.borda_score;
+                if (!QString::fromStdString(entry.in_frame_transcripts).isEmpty())
+                    inFrameTranscriptMap[entry.gene] = QString::fromStdString(entry.in_frame_transcripts);
+            }
+        }
 
         for (int row = 0; row < results.results.rows(); ++row) {
             double padj = results.results(row, 5);
@@ -1930,10 +3016,19 @@ namespace deseq2
             if (!std::isnan(padj) && padj < results.pValueThreshold)
                 enrichment = (lfc > 0) ? "enriched" : "depleted";
 
-            stream << QString::fromStdString(results.geneNames[row]);
+            const std::string &geneKey = results.geneNames[row];
+            stream << csvEscape(sanitizeGeneName(geneKey));
             for (int col = 0; col < results.results.cols(); ++col)
                 stream << "," << results.results(row, col);
-            stream << "," << enrichment << "\n";
+            stream << "," << csvEscape(enrichment)
+                   << "," << enrichmentScoreMap[geneKey]
+                   << "," << specificityScoreMap[geneKey]
+                   << "," << inFrameScoreMap[geneKey]
+                   << "," << bordaScoreMap[geneKey]
+                   << "," << csvEscape(inFrameTranscriptMap[geneKey])
+                   << "," << csvEscape(results.activeContrastLabel)
+                   << "," << csvEscape(results.createdAt)
+                   << "\n";
         }
         return true;
     }
@@ -1954,22 +3049,31 @@ namespace deseq2
             }
 
             QTextStream stream(&file);
-            stream << "Gene,baseMean,log2FoldChange,lfcSE,stat,pvalue,padj,enrichment,enrichment_score,borda_score\n";
+            stream << "Gene,baseMean,log2FoldChange,lfcSE,stat,pvalue,padj,enrichment_call,"
+                      "enrichment_score,specificity_score,in_frame_score,borda_score,"
+                      "in_frame_transcripts,active_contrast_label,created_at\n";
 
             QString query = "SELECT gene, base_mean, log2_fold_change, lfc_se, "
-                           "stat, pvalue, padj, enrichment, enrichment_score, borda_score "
-                           "FROM deseq2_results";
+                           "stat, pvalue, padj, enrichment_call, enrichment_score, "
+                           "specificity_score, in_frame_score, borda_score, in_frame_transcripts, "
+                           "active_contrast_label, created_at "
+                           "FROM analysis_results";
             if (significantOnly) {
-                query += " WHERE enrichment != 'ns'";
+                query += " WHERE enrichment_call != 'NS'";
             }
             query += " ORDER BY padj ASC";
 
             QSqlQuery q(db);
             q.exec(query);
             while (q.next()) {
-                stream << q.value(0).toString();
-                for (int i = 1; i <= 9; i++)
-                    stream << "," << q.value(i).toString();
+                stream << csvEscape(q.value(0).toString());
+                for (int i = 1; i <= 14; i++)
+                {
+                    if (i == 7 || i == 12 || i == 13 || i == 14)
+                        stream << "," << csvEscape(q.value(i).toString());
+                    else
+                        stream << "," << q.value(i).toString();
+                }
                 stream << "\n";
             }
 
@@ -2029,8 +3133,23 @@ namespace deseq2
         if (!m_plotTypeCombo || !m_analysisResults.isValid)
             return;
 
+        QElapsedTimer timer;
+        timer.start();
+
         QString plotType = m_plotTypeCombo->currentText();
-        addProgressMessage(QString("Drawing %1...").arg(plotType));
+        const QString cacheKey = QString("%1|%2|%3|%4|%5|%6")
+                                     .arg(plotType)
+                                     .arg(m_analysisResults.activeContrast)
+                                     .arg(m_pValueThresholdSpinBox ? m_pValueThresholdSpinBox->value() : 0.05, 0, 'g', 6)
+                                     .arg(m_log2FCThresholdSpinBox ? m_log2FCThresholdSpinBox->value() : 0.0, 0, 'g', 6)
+                                     .arg(m_pointSizeSpinBox ? m_pointSizeSpinBox->value() : 5)
+                                     .arg(m_resultsRevision);
+
+        if (cacheKey == m_lastPlotCacheKey && m_plotWidget && m_plotWidget->chart())
+        {
+            addProgressMessage(QString("Plot refresh skipped for %1: cached view is still current.").arg(plotType));
+            return;
+        }
 
         if (plotType == "Volcano Plot")
             plotVolcanoPlot();
@@ -2040,6 +3159,9 @@ namespace deseq2
             plotDispersionPlot();
         else if (plotType == "Three-way Scatter")
             plotThreeWayScatter();
+
+        m_lastPlotCacheKey = cacheKey;
+        addProgressMessage(QString("Rendered %1 in %2 ms").arg(plotType).arg(timer.elapsed()));
     }
 
     void MainWindow::plotMAPlot()
@@ -2064,6 +3186,9 @@ namespace deseq2
         nsSeries->setColor(QColor(150, 150, 150));
         nsSeries->setBorderColor(QColor(150, 150, 150));
 
+        QList<QPointF> sigPoints;
+        QList<QPointF> nsPoints;
+
         for (int i = 0; i < res.rows(); ++i)
         {
             double baseMean = res(i, 0);
@@ -2075,10 +3200,16 @@ namespace deseq2
             double x = std::log10(baseMean);
 
             if (padj < pThresh)
-                sigSeries->append(x, lfc);
+                sigPoints.append(QPointF(x, lfc));
             else
-                nsSeries->append(x, lfc);
+                nsPoints.append(QPointF(x, lfc));
         }
+
+        if (nsPoints.size() > kInteractivePointLimit)
+            nsPoints = downsamplePointsByXBucket(nsPoints, kInteractivePointLimit);
+
+        nsSeries->replace(nsPoints);
+        sigSeries->replace(sigPoints);
 
         // Build the chart
         QChart *chart = new QChart();
@@ -2128,6 +3259,9 @@ namespace deseq2
         nsSeries->setColor(QColor(150, 150, 150));
         nsSeries->setBorderColor(QColor(150, 150, 150));
 
+        QList<QPointF> sigPoints;
+        QList<QPointF> nsPoints;
+
         double maxNegLog10P = 0.0;
         double maxAbsLfc = 0.0;
 
@@ -2142,13 +3276,19 @@ namespace deseq2
             double negLog10P = -std::log10(pval);
 
             if (padj < pThresh && std::abs(lfc) > fcThresh)
-                sigSeries->append(lfc, negLog10P);
+                sigPoints.append(QPointF(lfc, negLog10P));
             else
-                nsSeries->append(lfc, negLog10P);
+                nsPoints.append(QPointF(lfc, negLog10P));
 
             maxNegLog10P = std::max(maxNegLog10P, negLog10P);
             maxAbsLfc = std::max(maxAbsLfc, std::abs(lfc));
         }
+
+        if (nsPoints.size() > kInteractivePointLimit)
+            nsPoints = downsamplePointsByXBucket(nsPoints, kInteractivePointLimit);
+
+        nsSeries->replace(nsPoints);
+        sigSeries->replace(sigPoints);
 
         // Threshold lines: horizontal at -log10(pThresh), vertical at +/- fcThresh
         double hLine = -std::log10(pThresh);
@@ -2238,13 +3378,19 @@ namespace deseq2
         geneSeries->setColor(QColor(70, 130, 220));
         geneSeries->setBorderColor(QColor(70, 130, 220));
 
+        QList<QPointF> genePoints;
+
         for (int i = 0; i < baseMeans.size(); ++i)
         {
             if (baseMeans(i) > 0 && genewise(i) > 0)
             {
-                geneSeries->append(std::log10(baseMeans(i)), std::log10(genewise(i)));
+                genePoints.append(QPointF(std::log10(baseMeans(i)), std::log10(genewise(i))));
             }
         }
+
+        if (genePoints.size() > kInteractivePointLimit)
+            genePoints = downsamplePointsByXBucket(genePoints, kInteractivePointLimit);
+        geneSeries->replace(genePoints);
 
         // Fitted trend line (sorted by x for connected line)
         std::vector<std::pair<double, double>> fitPoints;
@@ -2261,10 +3407,11 @@ namespace deseq2
         fitSeries->setName("Fitted trend");
         fitSeries->setPen(QPen(QColor(220, 50, 50), 2));
 
+        QList<QPointF> fitLinePoints;
+        fitLinePoints.reserve(static_cast<int>(fitPoints.size()));
         for (const auto &pt : fitPoints)
-        {
-            fitSeries->append(pt.first, pt.second);
-        }
+            fitLinePoints.append(QPointF(pt.first, pt.second));
+        fitSeries->replace(fitLinePoints);
 
         // Build the chart
         QChart *chart = new QChart();
@@ -2334,6 +3481,10 @@ namespace deseq2
         nsSeries->setColor(QColor(180, 180, 180));    // Gray
         nsSeries->setBorderColor(QColor(180, 180, 180));
 
+        QList<QPointF> bothPoints;
+        QList<QPointF> onePoints;
+        QList<QPointF> nsPoints;
+
         int nGenes = std::min(static_cast<int>(res1.rows()), static_cast<int>(res2.rows()));
         double maxAbsX = 0.0;
         double maxAbsY = 0.0;
@@ -2352,15 +3503,21 @@ namespace deseq2
             bool sig2 = !std::isnan(padj2) && padj2 < pThresh;
 
             if (sig1 && sig2)
-                bothSeries->append(lfc1, lfc2);
+                bothPoints.append(QPointF(lfc1, lfc2));
             else if (sig1 || sig2)
-                oneSeries->append(lfc1, lfc2);
+                onePoints.append(QPointF(lfc1, lfc2));
             else
-                nsSeries->append(lfc1, lfc2);
+                nsPoints.append(QPointF(lfc1, lfc2));
 
             maxAbsX = std::max(maxAbsX, std::abs(lfc1));
             maxAbsY = std::max(maxAbsY, std::abs(lfc2));
         }
+
+        if (nsPoints.size() > kInteractivePointLimit)
+            nsPoints = downsamplePointsByXBucket(nsPoints, kInteractivePointLimit);
+        nsSeries->replace(nsPoints);
+        oneSeries->replace(onePoints);
+        bothSeries->replace(bothPoints);
 
         // Reference lines at x=0 and y=0
         double xExtent = maxAbsX * 1.2;
@@ -2451,7 +3608,7 @@ namespace deseq2
                 generator.setSize(QSize(800, 600));
                 generator.setViewBox(QRect(0, 0, 800, 600));
                 generator.setTitle("StatMaker++ Plot");
-                generator.setDescription("Exported from StatMaker++ DESeq2 analysis");
+                generator.setDescription("Exported from StatMaker++ analysis");
                 QPainter painter(&generator);
                 m_plotWidget->render(&painter);
                 painter.end();
@@ -2539,7 +3696,7 @@ namespace deseq2
             return;
 
         // Save to a temp PDF and inform the user
-        QString tempPath = QDir::tempPath() + "/deseq2_plot.pdf";
+        QString tempPath = QDir::tempPath() + "/statmaker_plot.pdf";
         QPrinter printer(QPrinter::HighResolution);
         printer.setOutputFormat(QPrinter::PdfFormat);
         printer.setOutputFileName(tempPath);
@@ -2662,10 +3819,10 @@ namespace deseq2
 
     void MainWindow::onAbout()
     {
-        QMessageBox::about(static_cast<QWidget *>(this), "About DESeq2 GUI",
-                           "DESeq2 Differential Expression Analysis GUI\n\n"
+        QMessageBox::about(static_cast<QWidget *>(this), "About StatMaker++",
+                           "StatMaker++ Y2H Statistical Analysis\n\n"
                            "Version 1.0.0\n"
-                           "A Qt6-based interface for DESeq2 analysis.");
+                           "A Qt6-based interface for DESeq2 and Y2H-SCORES analysis.");
     }
 
     void MainWindow::onUserGuide()
@@ -2758,7 +3915,25 @@ namespace deseq2
             return;
         }
 
-        QProcess::startDetached(multiQueryPath, QStringList() << geneName);
+        const QString workdir = resolveWorkingDirectory();
+        QStringList datasets = discoverFiles(QDir(workdir).filePath("analyzed_files"), {"*.sqlite", "*.db"});
+        datasets.erase(
+            std::remove_if(datasets.begin(), datasets.end(),
+                           [](const QString &path)
+                           {
+                               return QFileInfo(path).fileName().compare(
+                                          "statmaker_results.sqlite", Qt::CaseInsensitive) == 0;
+                           }),
+            datasets.end());
+
+        QStringList arguments;
+        if (!workdir.isEmpty())
+            arguments << "--workdir" << workdir;
+        if (!datasets.isEmpty())
+            arguments << "--datasets" << datasets.join(",");
+        arguments << "--gene" << geneName;
+
+        QProcess::startDetached(multiQueryPath, arguments);
     }
 
     void MainWindow::onOpenInReadDepth()
@@ -2783,7 +3958,25 @@ namespace deseq2
             return;
         }
 
-        QProcess::startDetached(readDepthPath, QStringList() << geneName);
+        const QString workdir = resolveWorkingDirectory();
+        QStringList datasets = discoverFiles(QDir(workdir).filePath("analyzed_files"), {"*.sqlite", "*.db"});
+        datasets.erase(
+            std::remove_if(datasets.begin(), datasets.end(),
+                           [](const QString &path)
+                           {
+                               return QFileInfo(path).fileName().compare(
+                                          "statmaker_results.sqlite", Qt::CaseInsensitive) == 0;
+                           }),
+            datasets.end());
+
+        QStringList arguments;
+        if (!workdir.isEmpty())
+            arguments << "--workdir" << workdir;
+        if (!datasets.isEmpty())
+            arguments << "--datasets" << datasets.join(",");
+        arguments << "--gene" << geneName;
+
+        QProcess::startDetached(readDepthPath, arguments);
     }
 
     void MainWindow::onCopyGeneName()
@@ -2851,6 +4044,8 @@ namespace deseq2
 
         // Update the active contrast
         m_analysisResults.activeContrast = contrastIdx;
+        if (contrastIdx < static_cast<int>(m_analysisResults.contrastLabels.size()))
+            m_analysisResults.activeContrastLabel = QString::fromStdString(m_analysisResults.contrastLabels[contrastIdx]);
 
         // Replace the main results matrix with the selected contrast's results
         m_analysisResults.results = m_analysisResults.contrastResults[contrastIdx];
@@ -2877,6 +4072,8 @@ namespace deseq2
         }
 
         // Refresh UI
+        m_resultsColumnsSized = false;
+        invalidatePlotCache();
         updateResultsTable(m_analysisResults);
         updateResultsSummary(m_analysisResults);
         refreshPlot();

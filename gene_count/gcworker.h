@@ -25,19 +25,16 @@ class GCWorker : public QObject {
  private:
   QElapsedTimer elapsedTimer;
   QSqlDatabase db;
-  QSqlDatabase mem_db;
   QSqlQuery query;
   Signals *sig = Signals::getCommonInstance();
   GCStat *stat;
   QString mappedOuputDBName;
   QString writeDbConn;
-  QString fileDbConn;
-  QString memDbConn;
   void setupDB();
+  void writeReadHitsToDB(ReadHits& hits);
   void writeToDatabase(QList<ReadHits> *collectedReads);
   void readMapOutput();
   void writeGeneCount();
-  void createInMemoryDB();
 };
 
 #endif // GCWORKER_H

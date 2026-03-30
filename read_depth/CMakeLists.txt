@@ -13,6 +13,8 @@ qt_add_executable(read_depth MACOSX_BUNDLE
 set_target_properties(read_depth PROPERTIES
     OUTPUT_NAME "ReadDepth++"
     MACOSX_BUNDLE_ICON_FILE read_depth.icns
+    MACOSX_BUNDLE_BUNDLE_NAME "ReadDepth++"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "edu.uiowa.deepn.readdepth"
 )
 
 if(WIN32)

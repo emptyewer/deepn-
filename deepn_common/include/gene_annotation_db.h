@@ -17,11 +17,21 @@ public:
     // On subsequent calls, loads from cache (validates via SHA-256 checksum of FASTA)
     bool loadFromFasta(const QString& fastaPath);
 
+    // Load from pre-built gene annotation SQLite (schema: table "gene" with
+    // columns id, name, nm_number, start, stop, sequence)
+    bool loadFromSqlite(const QString& sqlitePath);
+
     // Lookup by refseq accession (NM_*)
     GeneAnnotation findByRefseq(const QString& refseq) const;
 
     // Lookup by gene name
     GeneAnnotation findByGeneName(const QString& geneName) const;
+
+    // Fetch sequence on demand (not loaded into memory during loadFromSqlite)
+    QString sequenceForRefseq(const QString& refseq) const;
+
+    // Fill in mRNALength and sequence for a gene loaded without them (from SQLite bulk load)
+    void populateGeneDetails(GeneAnnotation& annotation) const;
 
     // Search by partial name (for autocomplete)
     QVector<GeneAnnotation> search(const QString& query, int maxResults = 20) const;
@@ -42,6 +52,7 @@ private:
 
     QMap<QString, GeneAnnotation> m_byRefseq;
     QMap<QString, GeneAnnotation> m_byGeneName;
+    QString m_sqlitePath;  // For on-demand sequence queries
     QString m_error;
 };
 

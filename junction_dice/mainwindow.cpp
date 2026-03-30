@@ -6,6 +6,8 @@
 #include <QDir>
 #include <QFile>
 #include <QLabel>
+#include <QScrollBar>
+#include <QStatusBar>
 #include <QVBoxLayout>
 
 #include "jdworker.h"
@@ -102,6 +104,9 @@ void MainWindow::launchJunctionDice(QString file) {
     }
   }
   worker->moveToThread(thread);
+  connect(worker, &JDWorker::finished, thread, &QThread::quit);
+  connect(thread, &QThread::finished, worker, &QObject::deleteLater);
+  connect(thread, &QThread::finished, thread, &QObject::deleteLater);
   QMetaObject::invokeMethod(worker, "run");
 }
 
@@ -117,18 +122,50 @@ void MainWindow::on_dice_btn_clicked() {
   //  ui->gc_output->appendPlainText(python.call("test_utils").toString());
   //  ui->gc_output->appendPlainText("Emitting...");
   ui->jd_output->appendPlainText("Starting Junction Dice...");
-  for (int i = 0; i < files.length(); i++) {
-    launchJunctionDice(files.at(i));
-  }
+  maxWorkers = qMax(1, QThread::idealThreadCount() - 2);
+  pendingFiles = files;
+  activeWorkers = 0;
   ui->dice_btn->setEnabled(false);
   ui->exit_btn->setEnabled(false);
   ui->jseq_match_len->setEnabled(false);
   ui->blastChoices->setEnabled(false);
+  // Launch up to maxWorkers initially
+  while (activeWorkers < maxWorkers && !pendingFiles.isEmpty()) {
+    launchJunctionDice(pendingFiles.takeFirst());
+    activeWorkers++;
+  }
+  statusBar()->showMessage(QString("Processing %1 file(s), %2 concurrent...")
+                               .arg(files.length()).arg(activeWorkers));
 }
 
-void MainWindow::junctionDiceFinished() { ui->exit_btn->setEnabled(true); }
+void MainWindow::junctionDiceFinished() {
+  activeWorkers--;
+  launchNext();
+  int finished = files.length() - activeWorkers - pendingFiles.length();
+  if (activeWorkers <= 0 && pendingFiles.isEmpty()) {
+    ui->exit_btn->setEnabled(true);
+    ui->dice_btn->setEnabled(true);
+    ui->jseq_match_len->setEnabled(true);
+    ui->blastChoices->setEnabled(true);
+    statusBar()->showMessage(QString("All %1 file(s) completed.").arg(files.length()));
+  } else {
+    statusBar()->showMessage(QString("%1 of %2 completed, %3 running, %4 queued")
+                                 .arg(finished).arg(files.length())
+                                 .arg(activeWorkers).arg(pendingFiles.length()));
+  }
+}
+
+void MainWindow::launchNext() {
+  while (activeWorkers < maxWorkers && !pendingFiles.isEmpty()) {
+    launchJunctionDice(pendingFiles.takeFirst());
+    activeWorkers++;
+  }
+}
 
 void MainWindow::updateJunctionDiceProgress() {
+  QScrollBar* sb = ui->jd_output->verticalScrollBar();
+  int scrollPos = sb->value();
+  bool wasAtBottom = (scrollPos >= sb->maximum() - 4);
   ui->jd_output->clear();
   foreach (JDStat stat, statistics.values()) {
     ui->jd_output->appendPlainText(QString("--------------------------------"));
@@ -208,5 +245,10 @@ void MainWindow::updateJunctionDiceProgress() {
       ui->jd_output->appendPlainText(
           QString("--------------------------------\n"));
     }
+  }
+  if (wasAtBottom) {
+    sb->setValue(sb->maximum());
+  } else {
+    sb->setValue(scrollPos);
   }
 }

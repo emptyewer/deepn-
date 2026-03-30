@@ -11,6 +11,33 @@
 
 namespace deepn {
 
+bool SqliteJunctionLoader::looksLikeJunctionDatabase(const QString& dbPath)
+{
+    QFileInfo fi(dbPath);
+    if (!fi.exists() || !fi.isFile())
+        return false;
+
+    const QString connName = "jloader_probe_" + QUuid::createUuid().toString(QUuid::Id128);
+    bool hasMapsTable = false;
+
+    {
+        QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connName);
+        db.setDatabaseName(dbPath);
+        db.setConnectOptions("QSQLITE_OPEN_READONLY");
+        if (db.open()) {
+            QSqlQuery q(db);
+            if (q.exec("SELECT 1 FROM sqlite_master WHERE type='table' AND name='maps'")) {
+                hasMapsTable = q.next();
+            }
+            q.clear();
+            db.close();
+        }
+    }
+
+    QSqlDatabase::removeDatabase(connName);
+    return hasMapsTable;
+}
+
 bool SqliteJunctionLoader::open(const QString& dbPath)
 {
     m_error.clear();
@@ -148,21 +175,22 @@ GeneJunctionProfile SqliteJunctionLoader::loadGeneJunctions(
     int total = totalDistinctReads();
     profile.totalReads = total;
 
-    bool v2 = hasPositionColumns();
+    const QString geneKey = annotation.geneName.isEmpty() ? gene : annotation.geneName;
+    const QString refseqKey = annotation.refseq.isEmpty() ? gene : annotation.refseq;
 
-    // Query junction sites for this gene
-    QString sql;
-    if (v2) {
-        sql = "SELECT read, gene, qstart, qend, refseq, frame, location, rstart, rend "
-              "FROM maps WHERE gene = :gene";
-    } else {
-        sql = "SELECT read, gene, qstart, qend, refseq, frame, location "
-              "FROM maps WHERE gene = :gene";
-    }
+    // Query junction sites for this gene — use UNION to let each branch
+    // use its own index (idx_maps_gene, idx_maps_refseq) instead of OR scan.
+    QString sql = "SELECT read, gene, qstart, qend, refseq, frame, location, rstart, rend "
+                  "FROM maps WHERE gene = :gene "
+                  "UNION ALL "
+                  "SELECT read, gene, qstart, qend, refseq, frame, location, rstart, rend "
+                  "FROM maps WHERE refseq = :refseq AND gene != :gene2";
 
     QSqlQuery q(db);
     q.prepare(sql);
-    q.bindValue(":gene", gene);
+    q.bindValue(":gene", geneKey);
+    q.bindValue(":refseq", refseqKey);
+    q.bindValue(":gene2", geneKey);
     if (!q.exec()) {
         m_error = QStringLiteral("Query failed: %1").arg(q.lastError().text());
         qDebug() << m_error;
@@ -185,14 +213,8 @@ GeneJunctionProfile SqliteJunctionLoader::loadGeneJunctions(
         site.frame = q.value(5).toString();
         site.cdsClass = q.value(6).toString();
 
-        if (v2) {
-            site.position = q.value(7).toInt();
-            site.positionEnd = q.value(8).toInt();
-        } else {
-            // Fallback: use qstart as position proxy
-            site.position = site.queryStart;
-            site.positionEnd = site.queryEnd;
-        }
+        site.position = q.value(7).toInt();
+        site.positionEnd = q.value(8).toInt();
 
         // Use position as grouping key; track unique reads per position
         if (!positionReads.contains(site.position)) {
@@ -363,8 +385,12 @@ int SqliteJunctionLoader::geneReadCount(const QString& gene) const
     }
 
     QSqlQuery q(db);
-    q.prepare("SELECT COUNT(DISTINCT read) FROM maps WHERE gene = :gene");
+    q.prepare("SELECT COUNT(*) FROM ("
+              "SELECT DISTINCT read FROM maps WHERE gene = :gene "
+              "UNION "
+              "SELECT DISTINCT read FROM maps WHERE refseq = :refseq)");
     q.bindValue(":gene", gene);
+    q.bindValue(":refseq", gene);
     if (!q.exec()) {
         m_error = QStringLiteral("Query failed: %1").arg(q.lastError().text());
         qDebug() << m_error;

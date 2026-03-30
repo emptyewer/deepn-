@@ -21,6 +21,7 @@ namespace deseq2
     GeneCountData GeneCountHandler::parseGeneCountFile(const QString &filePath)
     {
         GeneCountData data;
+        data.filePath = QFileInfo(filePath).absoluteFilePath();
         data.fileName = QFileInfo(filePath).fileName();
         data.sampleName = extractSampleName(data.fileName);
         data.isValid = false;
@@ -106,6 +107,7 @@ namespace deseq2
         // DEPRECATED: XLSX support removed (QXlsx dependency eliminated).
         // Use parseGeneCountSqliteFile() for GeneCount++ output instead.
         GeneCountData data;
+        data.filePath = QFileInfo(filePath).absoluteFilePath();
         data.fileName = QFileInfo(filePath).fileName();
         data.sampleName = extractSampleName(data.fileName);
         data.isValid = false;
@@ -121,6 +123,7 @@ namespace deseq2
     GeneCountData GeneCountHandler::parseGeneCountSqliteFile(const QString &filePath)
     {
         GeneCountData data;
+        data.filePath = QFileInfo(filePath).absoluteFilePath();
         data.fileName = QFileInfo(filePath).fileName();
         data.sampleName = extractSampleName(data.fileName);
         data.isValid = false;
@@ -235,9 +238,9 @@ namespace deseq2
         // Check if file already exists
         for (const auto &existingData : m_geneCountFiles)
         {
-            if (existingData.fileName == data.fileName)
+            if (existingData.filePath == data.filePath)
             {
-                qDebug() << "File already exists:" << data.fileName;
+                qDebug() << "File already exists:" << data.filePath;
                 return false;
             }
         }
@@ -250,7 +253,7 @@ namespace deseq2
     {
         for (int i = 0; i < m_geneCountFiles.size(); ++i)
         {
-            if (m_geneCountFiles[i].fileName == fileName)
+            if (m_geneCountFiles[i].filePath == fileName || m_geneCountFiles[i].fileName == fileName)
             {
                 m_geneCountFiles.removeAt(i);
                 return true;
@@ -271,11 +274,41 @@ namespace deseq2
 
     bool GeneCountHandler::assignGroupToFile(const QString &fileName, const QString &groupName)
     {
-        for (auto &data : m_geneCountFiles)
+        for (int i = 0; i < m_geneCountFiles.size(); ++i)
         {
-            if (data.fileName == fileName)
+            auto &data = m_geneCountFiles[i];
+            if (data.filePath == fileName || data.fileName == fileName)
             {
-                data.groupName = groupName;
+                if (data.groupName.isEmpty())
+                {
+                    // No group yet — assign directly
+                    data.groupName = groupName;
+                    return true;
+                }
+                if (data.groupName == groupName)
+                {
+                    // Already assigned to this group
+                    return true;
+                }
+                // File already has a different group — check if a duplicate
+                // with this group already exists
+                bool alreadyDuplicated = false;
+                for (const auto &other : m_geneCountFiles)
+                {
+                    if ((other.filePath == data.filePath) && other.groupName == groupName)
+                    {
+                        alreadyDuplicated = true;
+                        break;
+                    }
+                }
+                if (!alreadyDuplicated)
+                {
+                    // Duplicate the entry with the new group
+                    GeneCountData dup = data;
+                    dup.groupName = groupName;
+                    dup.sampleName = data.sampleName + "_" + groupName;
+                    m_geneCountFiles.append(dup);
+                }
                 return true;
             }
         }
@@ -474,14 +507,16 @@ namespace deseq2
         tableWidget->setRowCount(m_geneCountFiles.size());
         tableWidget->setColumnCount(5);
 
-        QStringList headers = {"File Name", "Sample Name", "Group", "Total Reads", "Total Hits"};
+        QStringList headers = {"File", "Sample Name", "Group", "Total Reads", "Total Hits"};
         tableWidget->setHorizontalHeaderLabels(headers);
 
         for (int row = 0; row < m_geneCountFiles.size(); ++row)
         {
             const auto &data = m_geneCountFiles[row];
 
-            tableWidget->setItem(row, 0, new QTableWidgetItem(data.fileName));
+            auto *fileItem = new QTableWidgetItem(data.fileName);
+            fileItem->setToolTip(data.filePath);
+            tableWidget->setItem(row, 0, fileItem);
             tableWidget->setItem(row, 1, new QTableWidgetItem(data.sampleName));
             tableWidget->setItem(row, 2, new QTableWidgetItem(data.groupName));
             tableWidget->setItem(row, 3, new QTableWidgetItem(QString::number(data.totalReads)));
@@ -574,6 +609,11 @@ namespace deseq2
         }
 
         if (data.fileName.isEmpty())
+        {
+            return false;
+        }
+
+        if (data.filePath.isEmpty())
         {
             return false;
         }

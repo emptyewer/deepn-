@@ -28,6 +28,9 @@ class JDWorker : public QObject {
   explicit JDWorker(JDStat *stat, int fileCount);
   ~JDWorker();
 
+ signals:
+  void finished();
+
  public slots:
   void run();
 

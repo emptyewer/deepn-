@@ -23,6 +23,7 @@
 #include <QProgressBar>
 #include <QThread>
 #include <QMutex>
+#include <QMetaType>
 #include <memory>
 
 // Statistics library includes
@@ -58,14 +59,14 @@ namespace deseq2
         Eigen::MatrixXd results;              // DESeq2 results matrix
         std::vector<std::string> geneNames;   // Gene names
         std::vector<std::string> sampleNames; // Sample names
-        int totalGenes;                       // Total number of genes
-        int significantGenes;                 // Number of significant genes
-        int upregulatedGenes;                 // Number of upregulated genes
-        int downregulatedGenes;               // Number of downregulated genes
-        bool isValid;                         // Whether results are valid
+        int totalGenes = 0;                  // Total number of genes
+        int significantGenes = 0;            // Number of significant genes
+        int upregulatedGenes = 0;            // Number of significant genes
+        int downregulatedGenes = 0;          // Number of significant genes
+        bool isValid = false;                // Whether results are valid
         QString errorMessage;                 // Error message if invalid
-        double pValueThreshold;               // P-value threshold used
-        double log2FCThreshold;               // Log2FC threshold used
+        double pValueThreshold = 0.05;        // P-value threshold used
+        double log2FCThreshold = 0.0;         // Log2FC threshold used
 
         // Dispersion data for visualization
         Eigen::VectorXd genewiseDispersions;
@@ -74,6 +75,7 @@ namespace deseq2
 
         // Y2H-SCORES results
         std::vector<deseq2::EnrichmentResult> enrichmentScores;
+        std::vector<deseq2::SpecificityResult> specificityScores;
         std::vector<deseq2::InFrameResult> inFrameScores;
         std::vector<deseq2::Y2HScore> y2hScores;
 
@@ -83,6 +85,20 @@ namespace deseq2
         // contrastLabels[i] describes each contrast (e.g. "Group 1 vs Group 0")
         std::vector<std::string> contrastLabels;
         int activeContrast = 0; // Index of currently displayed contrast
+        QString activeContrastLabel;
+        QString createdAt;
+    };
+
+    struct AnalysisRunConfig
+    {
+        double pValueThreshold = 0.05;
+        double ppmThreshold = 0.0;
+        double enrichmentPValueThreshold = 1.0;
+        double enrichmentFoldChangeThreshold = 0.0;
+        double specificityPValueThreshold = 1.0;
+        int baitGroupSize = 10;
+        QStringList junctionFiles;
+        QString workingDirectory;
     };
 
     /**
@@ -93,7 +109,7 @@ namespace deseq2
         Q_OBJECT
 
     public:
-        AnalysisWorker(const CombinedData &data, double pValueThreshold = 0.05);
+        AnalysisWorker(const CombinedData &data, const AnalysisRunConfig &config);
         ~AnalysisWorker() = default;
 
     public slots:
@@ -117,9 +133,9 @@ namespace deseq2
 
         /**
          * @brief Emitted when analysis is finished
-         * @param results Analysis results (passed as pointer to avoid Qt signal limitations)
+         * @param results Analysis results passed by value for safe queued delivery
          */
-        void analysisFinished(AnalysisResults *results);
+        void analysisFinished(deseq2::AnalysisResults results);
 
         /**
          * @brief Emitted when analysis encounters an error
@@ -140,7 +156,7 @@ namespace deseq2
 
     private:
         CombinedData m_inputData;
-        double m_pValueThreshold;
+        AnalysisRunConfig m_config;
         bool m_shouldStop;
         QMutex m_stopMutex;
 
@@ -180,6 +196,9 @@ namespace deseq2
         MainWindow(MainWindow &&) = delete;
         MainWindow &operator=(MainWindow &&) = delete;
 
+        void loadWorkingDirectory(const QString &workdir);
+        void loadInputFiles(const QStringList &filePaths, bool clearExisting = false);
+
     private slots:
         // File operations
         void onAddGeneCountFiles();
@@ -198,7 +217,7 @@ namespace deseq2
 
         // Analysis worker slots
         void onAnalysisProgress(int progress, const QString &message);
-        void onAnalysisFinished(AnalysisResults *results);
+        void onAnalysisFinished(const AnalysisResults &results);
         void onAnalysisError(const QString &errorMessage);
         void onDebugMessage(const QString &message);
         void onThreadFinished();
@@ -342,6 +361,13 @@ namespace deseq2
          * @param data Combined data with PPM values to convert
          */
         void updateCountsPreviewWithConvertedValues(QTableWidget *table, const CombinedData &data);
+        void populateAutoDiscoveredFiles();
+        void autoDetectJunctionFiles();
+        QString resolveWorkingDirectory() const;
+        QString resultsDatabasePathForWorkdir(const QString &workdir) const;
+        bool loadResultsFromSqlite(const QString &sqlitePath);
+        bool validateAnalysisResults(const AnalysisResults &results, QString *errorMessage = nullptr) const;
+        void invalidatePlotCache();
 
         // UI components
         QTabWidget *m_tabWidget;
@@ -447,7 +473,11 @@ namespace deseq2
 
         // File dialog state
         QString m_lastUsedDirectory;
+        QString m_workingDirectory;
         QString m_resultsSqlitePath;
+        QString m_lastPlotCacheKey;
+        bool m_resultsColumnsSized = false;
+        quint64 m_resultsRevision = 0;
 
         // SQLite output
         void writeResultsToSqlite(const AnalysisResults &results);
@@ -457,5 +487,7 @@ namespace deseq2
     };
 
 } // namespace deseq2
+
+Q_DECLARE_METATYPE(deseq2::AnalysisResults)
 
 #endif // MAIN_WINDOW_H

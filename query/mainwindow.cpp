@@ -9,7 +9,9 @@
 #include <gene_selector_widget.h>
 #include <mrna_track_widget.h>
 #include <export_engine.h>
+#include <export_dialog.h>
 #include <batch_runner.h>
+#include <csv_utils.h>
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -29,6 +31,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QShortcut>
+#include <QSet>
 #include <QSortFilterProxyModel>
 #include <QSplitter>
 #include <QStatusBar>
@@ -37,6 +40,8 @@
 #include <QToolBar>
 #include <QToolButton>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 // ────────────────────────────────────────────────────────────────────
 // Construction / Destruction
@@ -54,6 +59,8 @@ MainWindow::MainWindow(QWidget* parent)
     setupMenuBar();
     setupToolBar();
     connectSignals();
+
+    m_loadingOverlay = new deepn::LoadingOverlay(this);
 
     statusBar()->showMessage("Ready -- load a working directory or dataset to begin.");
 }
@@ -395,7 +402,6 @@ void MainWindow::loadWorkingDirectory(const QString& workdir)
 void MainWindow::loadDataset(const QString& dbPath)
 {
     if (m_datasetPaths.contains(dbPath)) {
-        // Already loaded, just select it
         int idx = m_datasetPaths.indexOf(dbPath);
         m_datasetCombo->setCurrentIndex(idx);
         return;
@@ -406,7 +412,6 @@ void MainWindow::loadDataset(const QString& dbPath)
     m_datasetCombo->addItem(fi.fileName(), dbPath);
     m_secondaryDatasetCombo->addItem(fi.fileName(), dbPath);
 
-    // If this is the first dataset, select it and load
     if (m_datasetPaths.size() == 1) {
         m_datasetCombo->setCurrentIndex(0);
     }
@@ -423,25 +428,39 @@ void MainWindow::loadGeneReference(const QString& fastaPath)
         return;
     }
 
-    // Populate gene selector with all gene names
-    QStringList genes = m_annotationDB.allGeneNames();
-    m_geneSelector->setGeneList(genes);
+    refreshGeneSelector();
 
     statusBar()->showMessage(QString("Loaded %1 gene annotations from %2")
                                  .arg(m_annotationDB.count())
                                  .arg(QFileInfo(fastaPath).fileName()));
 }
 
+void MainWindow::loadGeneReferenceSqlite(const QString& sqlitePath)
+{
+    if (!m_annotationDB.loadFromSqlite(sqlitePath)) {
+        QMessageBox::warning(this, "Error Loading Gene Reference",
+                             QString("Failed to load gene reference SQLite:\n%1")
+                                 .arg(m_annotationDB.lastError()));
+        return;
+    }
+
+    refreshGeneSelector();
+
+    statusBar()->showMessage(QString("Loaded %1 gene annotations from %2")
+                                 .arg(m_annotationDB.count())
+                                 .arg(QFileInfo(sqlitePath).fileName()));
+}
+
 void MainWindow::loadDESeq2Results(const QString& csvPath)
 {
-    m_deseq2Results = parseDESeq2CSV(csvPath);
+    m_deseq2Results = deepn::parseDESeq2CSV(csvPath);
     if (m_deseq2Results.isEmpty()) {
         QMessageBox::warning(this, "Error Loading Results",
                              "No valid results found in CSV file.");
         return;
     }
 
-    m_geneSelector->setDESeq2Results(m_deseq2Results);
+    refreshGeneSelector();
 
     statusBar()->showMessage(QString("Loaded %1 DESeq2 results from %2")
                                  .arg(m_deseq2Results.size())
@@ -450,7 +469,11 @@ void MainWindow::loadDESeq2Results(const QString& csvPath)
 
 void MainWindow::displayGene(const QString& gene)
 {
-    m_geneSelector->selectGene(gene);
+    const QString selectionKey = deepn::selectionKeyFor(gene, m_annotationDB);
+    if (!m_geneSelector->selectGene(selectionKey) &&
+        !m_geneSelector->selectGene(gene.trimmed())) {
+        onGeneSelected(gene.trimmed());
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -464,13 +487,23 @@ void MainWindow::autoDiscoverFiles()
     QDir dir(m_workdir);
 
     // Discover SQLite databases in analyzed_files/
+    // Add by extension only — skip per-file DB open probes during discovery.
     QDir analyzedDir(dir.filePath("analyzed_files"));
     if (analyzedDir.exists()) {
         QStringList filters;
-        filters << "*.sqlite";
+        filters << "*.sqlite" << "*.db";
         QFileInfoList dbFiles = analyzedDir.entryInfoList(filters, QDir::Files, QDir::Name);
         for (const QFileInfo& fi : dbFiles) {
-            loadDataset(fi.absoluteFilePath());
+            if (fi.fileName().compare("statmaker_results.sqlite", Qt::CaseInsensitive) == 0) continue;
+            QString path = fi.absoluteFilePath();
+            if (!m_datasetPaths.contains(path)) {
+                m_datasetPaths.append(path);
+                m_datasetCombo->addItem(fi.fileName(), path);
+                m_secondaryDatasetCombo->addItem(fi.fileName(), path);
+            }
+        }
+        if (!m_datasetPaths.isEmpty() && m_datasetCombo->currentIndex() < 0) {
+            m_datasetCombo->setCurrentIndex(0);
         }
     }
 
@@ -503,7 +536,6 @@ void MainWindow::autoDiscoverFiles()
                 return fi.absoluteFilePath();
             }
         }
-        if (!csvFiles.isEmpty()) return csvFiles.first().absoluteFilePath();
         return {};
     };
 
@@ -517,18 +549,9 @@ void MainWindow::autoDiscoverFiles()
         }
     }
 
-    // If gene selector has items and primary loader is open, display first gene
-    if (m_geneSelector->currentGene().isEmpty() && m_datasetPaths.size() > 0) {
-        // Load available genes from the primary dataset
-        if (m_primaryLoader.open(m_datasetPaths.first())) {
-            QStringList availGenes = m_primaryLoader.availableGenes();
-            if (!availGenes.isEmpty()) {
-                if (m_geneSelector->currentGene().isEmpty()) {
-                    m_geneSelector->selectGene(availGenes.first());
-                }
-            }
-        }
-    }
+    refreshGeneSelector();
+    // Don't auto-select a gene — let the user pick one.
+    // Loading junction data for a gene opens the SQLite DB which is slow.
 }
 
 void MainWindow::populateDatasetCombo()
@@ -549,6 +572,7 @@ void MainWindow::populateDatasetCombo()
 void MainWindow::onGeneSelected(const QString& gene)
 {
     if (gene.isEmpty()) return;
+    m_currentGene = gene;
 
     // Check if primary loader is ready
     int idx = m_datasetCombo->currentIndex();
@@ -646,8 +670,10 @@ void MainWindow::onCompareToggled(bool checked)
     m_secondaryDatasetCombo->setVisible(checked);
     m_comparisonMgr->setEnabled(checked);
 
-    if (checked && !m_geneSelector->currentGene().isEmpty()) {
+    if (checked && !m_currentGene.isEmpty()) {
         refreshSecondaryDisplay();
+    } else {
+        m_tableModel->clearComparisonData();
     }
 }
 
@@ -663,7 +689,7 @@ void MainWindow::onDatasetChanged(int index)
     }
 
     // Reload current gene if one is selected
-    QString gene = m_geneSelector->currentGene();
+    QString gene = m_currentGene;
     if (!gene.isEmpty()) {
         onGeneSelected(gene);
     }
@@ -680,7 +706,7 @@ void MainWindow::onSecondaryDatasetChanged(int index)
         return;
     }
 
-    if (m_compareCheck->isChecked() && !m_geneSelector->currentGene().isEmpty()) {
+    if (m_compareCheck->isChecked() && !m_currentGene.isEmpty()) {
         refreshSecondaryDisplay();
     }
 }
@@ -721,25 +747,31 @@ void MainWindow::onExportFigure()
         return;
     }
 
-    QString defaultName = QString("%1_junction_plot").arg(m_currentProfile.annotation.geneName);
+    deepn::ExportDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted) return;
+
+    auto es = dlg.settings();
+    QString defaultName = QString("%1_junction_plot%2")
+                              .arg(m_currentProfile.annotation.geneName)
+                              .arg(es.defaultExtension());
     QString filePath = QFileDialog::getSaveFileName(this, "Export Figure",
                                                      QDir(m_workdir).filePath(defaultName),
-                                                     "SVG (*.svg);;PDF (*.pdf);;PNG (*.png)");
+                                                     es.filter() + ";;All Files (*)");
     if (filePath.isEmpty()) return;
 
+    QSize figSize(es.width, es.height);
     bool ok = false;
-    QSize figSize(800, 400);
 
-    if (filePath.endsWith(".svg", Qt::CaseInsensitive)) {
+    switch (es.format) {
+    case deepn::ExportSettings::SVG:
         ok = deepn::ExportEngine::exportFigureSVG(filePath, m_primaryPlot, figSize);
-    } else if (filePath.endsWith(".pdf", Qt::CaseInsensitive)) {
+        break;
+    case deepn::ExportSettings::PDF:
         ok = deepn::ExportEngine::exportFigurePDF(filePath, m_primaryPlot, figSize);
-    } else if (filePath.endsWith(".png", Qt::CaseInsensitive)) {
-        ok = deepn::ExportEngine::exportFigurePNG(filePath, m_primaryPlot, figSize, 300);
-    } else {
-        // Default to SVG
-        filePath += ".svg";
-        ok = deepn::ExportEngine::exportFigureSVG(filePath, m_primaryPlot, figSize);
+        break;
+    case deepn::ExportSettings::PNG:
+        ok = deepn::ExportEngine::exportFigurePNG(filePath, m_primaryPlot, figSize, es.dpi);
+        break;
     }
 
     if (ok) {
@@ -833,9 +865,12 @@ void MainWindow::refreshDisplay()
 
     // Update annotation-based views
     if (annot.isValid()) {
-        m_detailPanel->setAnnotation(annot);
-        m_primaryTrack->setAnnotation(annot);
-        m_primaryTrack->setVisibleRange(0, annot.mRNALength);
+        // Lazy-load mRNALength + sequence for this gene
+        deepn::GeneAnnotation fullAnnot = annot;
+        m_annotationDB.populateGeneDetails(fullAnnot);
+        m_detailPanel->setAnnotation(fullAnnot);
+        m_primaryTrack->setAnnotation(fullAnnot);
+        m_primaryTrack->setVisibleRange(0, fullAnnot.mRNALength);
     }
 
     // Apply filters to get display data
@@ -879,7 +914,7 @@ void MainWindow::refreshSecondaryDisplay()
         if (!m_secondaryLoader.open(dbPath)) return;
     }
 
-    QString gene = m_geneSelector->currentGene();
+    QString gene = m_currentGene;
     if (gene.isEmpty()) return;
 
     deepn::GeneAnnotation annotation = m_annotationDB.findByGeneName(gene);
@@ -908,6 +943,9 @@ void MainWindow::refreshSecondaryDisplay()
     }
 
     m_comparisonMgr->syncRanges();
+
+    // Feed secondary PPM data to the table model for enrichment markers
+    m_tableModel->setComparisonData(m_secondaryProfile.sites);
 }
 
 void MainWindow::applyFilters(const deepn::GeneJunctionProfile& profile,
@@ -924,43 +962,31 @@ void MainWindow::applyFilters(const deepn::GeneJunctionProfile& profile,
     }
 }
 
-QVector<deepn::DESeq2Result> MainWindow::parseDESeq2CSV(const QString& path) const
+void MainWindow::refreshGeneSelector()
 {
-    QVector<deepn::DESeq2Result> results;
-
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        return results;
-    }
-
-    QTextStream in(&file);
-    QString header = in.readLine();  // skip header
-
-    // Detect separator
-    QChar sep = ',';
-    if (header.contains('\t')) sep = '\t';
-
-    while (!in.atEnd()) {
-        QString line = in.readLine().trimmed();
-        if (line.isEmpty()) continue;
-
-        QStringList fields = line.split(sep);
-        if (fields.size() < 7) continue;
-
-        deepn::DESeq2Result r;
-        r.gene = fields[0].trimmed().remove('"');
-        r.baseMean = fields[1].toDouble();
-        r.log2FoldChange = fields[2].toDouble();
-        r.lfcSE = fields[3].toDouble();
-        r.stat = fields[4].toDouble();
-        r.pvalue = fields[5].toDouble();
-        r.padj = fields[6].toDouble();
-        if (fields.size() > 7) {
-            r.enrichment = fields[7].trimmed().remove('"');
+    QStringList geneList;
+    if (!m_deseq2Results.isEmpty()) {
+        m_geneSelector->setDESeq2Results(m_deseq2Results);
+        geneList.reserve(m_deseq2Results.size());
+        for (const auto& result : m_deseq2Results) {
+            geneList.append(result.gene);
         }
-
-        results.append(r);
+    } else if (m_annotationDB.count() > 0) {
+        // Use annotation DB (already in memory) — zero SQLite opens
+        geneList = m_annotationDB.allGeneNames();
+        std::sort(geneList.begin(), geneList.end(), [](const QString& a, const QString& b) {
+            return a.compare(b, Qt::CaseInsensitive) < 0;
+        });
+        m_geneSelector->setGeneList(geneList);
     }
 
-    return results;
+    // Re-select current gene if one was already active (e.g. after filter change)
+    if (!m_currentGene.isEmpty()) {
+        QString key = deepn::selectionKeyFor(m_currentGene, m_annotationDB);
+        if (!m_geneSelector->selectGene(key)) {
+            m_geneSelector->selectGene(m_currentGene);
+        }
+    }
+    // Otherwise don't auto-select — user picks a gene when ready
 }
+

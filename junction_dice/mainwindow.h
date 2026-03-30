@@ -25,11 +25,15 @@ class MainWindow : public QMainWindow {
  private:
   Ui::MainWindow *ui;
   QStringList files = {};
+  QStringList pendingFiles = {};
   QString junction_sequence = "";
   QString db_path = "";
   Signals *sig = Signals::getCommonInstance();
   QMap<QString, JDStat> statistics = {};
+  int activeWorkers = 0;
+  int maxWorkers = 1;
   void launchJunctionDice(QString file);
+  void launchNext();
   void setupSlots();
   int showDialog(QString message, QString accept, QString cancel);
 };

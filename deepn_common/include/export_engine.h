@@ -17,6 +17,10 @@ public:
     static bool exportJunctionCSV(const QString& filePath, const GeneJunctionProfile& profile);
     static bool exportCollapsedCSV(const QString& filePath, const QVector<CollapsedJunction>& collapsed);
     static bool exportDepthCSV(const QString& filePath, const DepthProfile& profile);
+    static bool exportBoundaryCSV(const QString& filePath,
+                                   const QString& geneName, const QString& refseq,
+                                   const BoundaryResult& boundary,
+                                   const InsertExtent& extent);
     static bool exportBatchSummaryCSV(const QString& filePath,
                                        const QVector<GeneJunctionProfile>& profiles);
 

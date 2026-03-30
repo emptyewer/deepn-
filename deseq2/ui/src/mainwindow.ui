@@ -173,19 +173,12 @@
              </item>
              <item>
               <widget class="QComboBox" name="analysisModeCombo">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
                <item>
                 <property name="text">
-                 <string>DESeq2 (Two-way comparison)</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>DESeq2 (Three-way comparison)</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Y2H-SCORES (Full pipeline)</string>
+                 <string>DESeq2 + Y2H-SCORES</string>
                 </property>
                </item>
               </widget>
@@ -235,6 +228,9 @@
              </item>
              <item>
               <widget class="QComboBox" name="baitGroupingCombo">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
                <item>
                 <property name="text">
                  <string>Auto (10 per group)</string>
@@ -339,24 +335,17 @@
            <item>
             <layout class="QHBoxLayout" name="y2hScoresRow3">
              <item>
-              <widget class="QLabel" name="junctionFilesLabel">
-               <property name="text">
-                <string>Junction SQLite files:</string>
-               </property>
-              </widget>
-             </item>
-             <item>
               <widget class="QLineEdit" name="junctionFilesEdit">
-               <property name="readOnly">
-                <bool>true</bool>
-               </property>
-               <property name="placeholderText">
-                <string>Auto-detected or browse for *jdice*.sqlite files...</string>
+               <property name="visible">
+                <bool>false</bool>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QPushButton" name="browseJunctionBtn">
+               <property name="visible">
+                <bool>false</bool>
+               </property>
                <property name="text">
                 <string>Browse...</string>
                </property>

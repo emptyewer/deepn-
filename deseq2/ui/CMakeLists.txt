@@ -10,6 +10,8 @@ qt_add_executable(deseq2_app
 
 set_target_properties(deseq2_app PROPERTIES
     OUTPUT_NAME "StatMaker++"
+    MACOSX_BUNDLE_BUNDLE_NAME "StatMaker++"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "edu.uiowa.deepn.statmaker"
 )
 
 target_include_directories(deseq2_app PRIVATE

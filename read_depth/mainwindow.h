@@ -10,6 +10,7 @@
 #include "gene_annotation_db.h"
 #include "gene_selector_widget.h"
 #include "mrna_track_widget.h"
+#include "loading_overlay.h"
 #include "sync_controller.h"
 
 #include <QCheckBox>
@@ -34,9 +35,15 @@ public:
     void loadWorkingDirectory(const QString& workdir);
     void loadDataset(const QString& dbPath);
     void loadGeneReference(const QString& fastaPath);
+    void loadGeneReferenceSqlite(const QString& sqlitePath);
     void loadDESeq2Results(const QString& csvPath);
     void loadJunctionData(const QString& csvPath);
     void displayGene(const QString& gene);
+
+    deepn::LoadingOverlay* loadingOverlay() const { return m_loadingOverlay; }
+    deepn::GeneAnnotationDB& annotationDB() { return m_annotationDB; }
+    void setDESeq2Results(const QVector<deepn::DESeq2Result>& results) { m_deseq2Results = results; }
+    void refreshGeneSelector();
 
 private slots:
     void onGeneSelected(const QString& gene);
@@ -50,6 +57,7 @@ private slots:
     void onCursorMoved(int position, int depth);
     void onRangeChanged(qreal xMin, qreal xMax);
     void onExportCSV();
+    void onExportBoundaryCSV();
     void onExportFigure();
     void onBatchRun();
     void onResetZoom();
@@ -102,6 +110,7 @@ private:
 
     // Sync controller for split mode
     deepn::SyncController* m_syncController = nullptr;
+    deepn::LoadingOverlay* m_loadingOverlay = nullptr;
 
     // State
     QStringList m_datasetPaths;
@@ -119,7 +128,6 @@ private:
     void updateComparisonMode();
     void autoDiscoverFiles();
     void populateDatasetCombos();
-    QVector<deepn::DESeq2Result> parseDESeq2CSV(const QString& csvPath);
     QMap<QString, QVector<deepn::JunctionSite>> parseJunctionCSV(const QString& csvPath);
 };
 

@@ -26,6 +26,21 @@ endif()
 # Copy deepn.json config
 file(COPY "${SRC}/data/deepn.json" DESTINATION "${DST}/Data")
 
+# Unzip pre-built gene annotation SQLite databases
+file(GLOB ANNOT_ZIPS "${SRC}/data/*.fasta.sqlite.zip")
+foreach(Z ${ANNOT_ZIPS})
+    get_filename_component(ZNAME "${Z}" NAME_WE)  # e.g. hg38GeneList2023.unique.fasta.sqlite
+    set(SQLITE_OUT "${DST}/Data/${ZNAME}")
+    if(NOT EXISTS "${SQLITE_OUT}")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} -E tar xf "${Z}"
+            WORKING_DIRECTORY "${DST}/Data"
+        )
+        # Remove macOS resource fork junk if present
+        file(REMOVE_RECURSE "${DST}/Data/__MACOSX")
+    endif()
+endforeach()
+
 # Copy genome FASTA JSON configs
 file(GLOB FASTA_JSONS "${SRC}/data/*.unique.fasta.json")
 foreach(F ${FASTA_JSONS})

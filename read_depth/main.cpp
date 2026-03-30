@@ -1,5 +1,8 @@
 #include "mainwindow.h"
 
+#include <loading_overlay.h>
+#include <startup_loader.h>
+
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
@@ -16,74 +19,70 @@ int main(int argc, char* argv[])
     parser.addHelpOption();
     parser.addVersionOption();
 
-    QCommandLineOption workdirOpt(
-        "workdir",
-        "Working directory containing experiment data.",
-        "path");
+    QCommandLineOption workdirOpt("workdir", "Working directory.", "path");
+    QCommandLineOption datasetsOpt("datasets", "Comma-separated SQLite paths.", "paths");
+    QCommandLineOption generefOpt("generef", "Gene reference file (.sqlite or .fasta).", "path");
+    QCommandLineOption geneOpt("gene", "Initial gene to display.", "name");
+    QCommandLineOption resultsOpt("results", "DESeq2 results CSV.", "path");
+    QCommandLineOption junctionsOpt("junctions", "Junction CSV for overlay.", "path");
     parser.addOption(workdirOpt);
-
-    QCommandLineOption datasetsOpt(
-        "datasets",
-        "Comma-separated SQLite database paths.",
-        "paths");
     parser.addOption(datasetsOpt);
-
-    QCommandLineOption generefOpt(
-        "generef",
-        "Path to FASTA gene reference file.",
-        "path");
     parser.addOption(generefOpt);
-
-    QCommandLineOption geneOpt(
-        "gene",
-        "Initial gene to display.",
-        "name");
     parser.addOption(geneOpt);
-
-    QCommandLineOption resultsOpt(
-        "results",
-        "DESeq2 results CSV path.",
-        "path");
     parser.addOption(resultsOpt);
-
-    QCommandLineOption junctionsOpt(
-        "junctions",
-        "MultiQuery++ junction data CSV path (for overlay).",
-        "path");
     parser.addOption(junctionsOpt);
-
     parser.process(app);
 
     MainWindow w;
     w.show();
 
-    // Apply CLI arguments in order: reference first, then data, then display
-    if (parser.isSet(generefOpt)) {
-        w.loadGeneReference(parser.value(generefOpt));
-    }
+    auto* overlay = w.loadingOverlay();
+    overlay->show("Loading ReadDepth++...");
 
-    if (parser.isSet(resultsOpt)) {
-        w.loadDESeq2Results(parser.value(resultsOpt));
-    }
-
-    if (parser.isSet(junctionsOpt)) {
-        w.loadJunctionData(parser.value(junctionsOpt));
-    }
-
-    if (parser.isSet(workdirOpt)) {
-        w.loadWorkingDirectory(parser.value(workdirOpt));
-    }
-
+    deepn::StartupLoader loader;
+    deepn::StartupLoader::Config config;
+    config.generefPath = parser.value(generefOpt);
+    config.workdir = parser.value(workdirOpt);
+    config.resultsCSV = parser.value(resultsOpt);
+    config.junctionsCSV = parser.value(junctionsOpt);
+    config.geneName = parser.value(geneOpt);
     if (parser.isSet(datasetsOpt)) {
-        const QStringList paths = parser.value(datasetsOpt).split(',', Qt::SkipEmptyParts);
-        for (const QString& path : paths) {
-            w.loadDataset(path.trimmed());
-        }
+        config.datasetPaths = parser.value(datasetsOpt).split(',', Qt::SkipEmptyParts);
     }
 
-    if (parser.isSet(geneOpt)) {
-        w.displayGene(parser.value(geneOpt));
-    }
+    QObject::connect(&loader, &deepn::StartupLoader::message,
+                     overlay, &deepn::LoadingOverlay::addMessage);
+
+    QObject::connect(&loader, &deepn::StartupLoader::finished, &w, [&]() {
+        // Load annotation DB on main thread (fast — metadata only, no sequences)
+        if (!config.generefPath.isEmpty()) {
+            if (config.generefPath.endsWith(".sqlite", Qt::CaseInsensitive)) {
+                w.loadGeneReferenceSqlite(config.generefPath);
+            } else {
+                w.loadGeneReference(config.generefPath);
+            }
+        }
+
+        w.setDESeq2Results(loader.deseq2Results());
+
+        for (const QString& path : loader.discoveredDatasets()) {
+            w.loadDataset(path);
+        }
+
+        if (!config.junctionsCSV.isEmpty()) {
+            w.loadJunctionData(config.junctionsCSV);
+        }
+
+        w.refreshGeneSelector();
+
+        if (!loader.initialGene().isEmpty()) {
+            w.displayGene(loader.initialGene());
+        }
+
+        overlay->hide();
+    });
+
+    loader.start(config);
 
     return app.exec();
 }
