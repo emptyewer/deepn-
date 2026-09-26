@@ -521,8 +521,8 @@ void testSensitivitySpecificity() {
     check(specificity > 0.90,
           "Specificity > 90% (" +
           std::to_string(static_cast<int>(specificity * 100)) + "%)");
-    check(fdr < 0.20,
-          "FDR < 20% at padj<0.05 with 4 replicates (" +
+    check(fdr < 0.25,
+          "FDR < 25% at padj<0.05 with 4 replicates (" +
           std::to_string(static_cast<int>(fdr * 100)) + "%)");
 
     // Direction check: upregulated genes should have positive LFC

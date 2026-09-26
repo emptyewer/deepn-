@@ -20,7 +20,16 @@ set_target_properties(junction_dice PROPERTIES
     MACOSX_BUNDLE_ICON_FILE junction_dice.icns
     MACOSX_BUNDLE_BUNDLE_NAME "JunctionDice++"
     MACOSX_BUNDLE_GUI_IDENTIFIER "edu.uiowa.deepn.junctiondice"
+    MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
 )
+
+if(APPLE AND MACDEPLOYQT_EXECUTABLE)
+    add_custom_command(TARGET junction_dice POST_BUILD
+        COMMAND ${MACDEPLOYQT_EXECUTABLE} "$<TARGET_BUNDLE_DIR:junction_dice>" -verbose=0 -codesign=-
+        COMMENT "macdeployqt: JunctionDice++.app"
+    )
+endif()
 
 if(WIN32)
     target_sources(junction_dice PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../icons/junction_make_windows.rc)

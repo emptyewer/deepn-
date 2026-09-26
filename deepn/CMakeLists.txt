@@ -19,6 +19,8 @@ set_target_properties(deepn PROPERTIES
     MACOSX_BUNDLE_ICON_FILE deepn.icns
     MACOSX_BUNDLE_BUNDLE_NAME "DEEPN++"
     MACOSX_BUNDLE_GUI_IDENTIFIER "edu.uiowa.deepn"
+    MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
 )
 
 if(WIN32)
@@ -37,60 +39,67 @@ target_link_libraries(deepn PRIVATE
 add_dependencies(deepn junction_dice gene_count query read_depth deseq2_app)
 
 if(APPLE)
-    # ── Step 1: assemble the bundle ───────────────────────────────────────────
+    get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
+    get_filename_component(_qt_bin "${_qt_qmake}" DIRECTORY)
+    find_program(MACDEPLOYQT_EXECUTABLE macdeployqt HINTS "${_qt_bin}")
+
+    if(NOT MACDEPLOYQT_EXECUTABLE)
+        message(WARNING
+            "macdeployqt not found near ${_qt_bin}. "
+            "Qt frameworks will not be embedded — the app will not be self-contained.")
+    endif()
+
+    # macdeployqt path is exported so child CMakeLists can use it
+    set(MACDEPLOYQT_EXECUTABLE "${MACDEPLOYQT_EXECUTABLE}" CACHE INTERNAL "")
+
+    # ── Step 1: assemble the parent bundle ───────────────────────────────────
+    # Child apps already have macdeployqt run in their own CMakeLists.txt,
+    # so they're self-contained with Qt frameworks when copied here.
+    # rm -rf the destination before cp -a so that incremental rebuilds don't
+    # create double-nesting (cp -a copies SOURCE *inside* DEST if DEST exists).
+    # Use cp -a (not cmake -E copy_directory) to preserve framework symlinks.
     add_custom_command(TARGET deepn POST_BUILD
-        # Data for main app
         COMMAND ${CMAKE_COMMAND} -E make_directory
             "$<TARGET_BUNDLE_DIR:deepn>/Contents/Data"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_SOURCE_DIR}/data/deepn.json"
             "$<TARGET_BUNDLE_DIR:deepn>/Contents/Data/"
-        # Bundle child apps into Resources
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        COMMAND ${CMAKE_COMMAND} -E rm -rf
+            "$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:gene_count>.app"
+        COMMAND cp -a
             "$<TARGET_BUNDLE_DIR:gene_count>"
             "$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:gene_count>.app"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        COMMAND ${CMAKE_COMMAND} -E rm -rf
+            "$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:junction_dice>.app"
+        COMMAND cp -a
             "$<TARGET_BUNDLE_DIR:junction_dice>"
             "$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:junction_dice>.app"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        COMMAND ${CMAKE_COMMAND} -E rm -rf
+            "$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:query>.app"
+        COMMAND cp -a
             "$<TARGET_BUNDLE_DIR:query>"
             "$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:query>.app"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        COMMAND ${CMAKE_COMMAND} -E rm -rf
+            "$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:read_depth>.app"
+        COMMAND cp -a
             "$<TARGET_BUNDLE_DIR:read_depth>"
             "$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:read_depth>.app"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        COMMAND ${CMAKE_COMMAND} -E rm -rf
+            "$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:deseq2_app>.app"
+        COMMAND cp -a
             "$<TARGET_BUNDLE_DIR:deseq2_app>"
             "$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:deseq2_app>.app"
         COMMENT "Bundling child apps and data into DEEPN++.app"
     )
 
-    # ── Step 2: Qt framework deployment ──────────────────────────────────────
-    # Locates macdeployqt from the same Qt installation used to build.
-    get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
-    get_filename_component(_qt_bin "${_qt_qmake}" DIRECTORY)
-    find_program(MACDEPLOYQT_EXECUTABLE macdeployqt HINTS "${_qt_bin}")
-
+    # ── Step 2: macdeployqt the parent for its own executable ────────────────
     if(MACDEPLOYQT_EXECUTABLE)
-        # Pass each child app executable so macdeployqt embeds Qt frameworks for
-        # all executables that live inside DEEPN++.app/Contents/Resources/.
-        # Disable macdeployqt's built-in ad-hoc signing (-codesign=-)
-        # Our cmake/codesign.cmake handles proper deep-signing for notarization.
         add_custom_command(TARGET deepn POST_BUILD
             COMMAND ${MACDEPLOYQT_EXECUTABLE}
                 "$<TARGET_BUNDLE_DIR:deepn>"
-                -executable="$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:junction_dice>.app/Contents/MacOS/$<TARGET_FILE_BASE_NAME:junction_dice>"
-                -executable="$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:gene_count>.app/Contents/MacOS/$<TARGET_FILE_BASE_NAME:gene_count>"
-                -executable="$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:query>.app/Contents/MacOS/$<TARGET_FILE_BASE_NAME:query>"
-                -executable="$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:read_depth>.app/Contents/MacOS/$<TARGET_FILE_BASE_NAME:read_depth>"
-                -executable="$<TARGET_BUNDLE_DIR:deepn>/Contents/Resources/$<TARGET_FILE_BASE_NAME:deseq2_app>.app/Contents/MacOS/$<TARGET_FILE_BASE_NAME:deseq2_app>"
-                -verbose=0
-                -codesign=-
+                -verbose=0 -codesign=-
             COMMENT "macdeployqt: embedding Qt frameworks into DEEPN++.app"
         )
-    else()
-        message(WARNING
-            "macdeployqt not found near ${_qt_bin}. "
-            "Qt frameworks will not be embedded — the app will not be self-contained.")
     endif()
 
     # ── Step 3: code signing (Release builds only, when identity is provided) ─

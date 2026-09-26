@@ -21,6 +21,11 @@ MainWindow::MainWindow(int argc, char* argv[], QWidget* parent)
   setupSlots();
   qRegisterMetaType<JDStat>("JDStat");
 
+  if (argc < 3) {
+    qCritical("Usage: JunctionDice++ <file1.fastq.gz> ... <junction_seq> <db_path>");
+    QTimer::singleShot(0, qApp, &QCoreApplication::quit);
+    return;
+  }
   for (int i = 1; i < argc - 2; i++) {
     files << argv[i];
   }
@@ -74,7 +79,6 @@ void MainWindow::launchJunctionDice(QString file) {
   QFileInfo fi(file);
   JDStat stat = JDStat();
   QThread* thread = new QThread;
-  thread->start();
   stat.dstat.input = file;
   if (ui->blat->isChecked()) {
     stat.mstat.algo = blat;
@@ -107,6 +111,7 @@ void MainWindow::launchJunctionDice(QString file) {
   connect(worker, &JDWorker::finished, thread, &QThread::quit);
   connect(thread, &QThread::finished, worker, &QObject::deleteLater);
   connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+  thread->start();
   QMetaObject::invokeMethod(worker, "run");
 }
 
@@ -228,6 +233,11 @@ void MainWindow::updateJunctionDiceProgress() {
       ui->jd_output->appendPlainText(QString("%1% mapped in %2 secs...")
                                          .arg(stat.mstat.percentComplete)
                                          .arg(stat.mstat.elapsedTime));
+    }
+
+    if (!stat.errorMessage.isEmpty()) {
+      ui->jd_output->appendPlainText(
+          QString("\nERROR: %1").arg(stat.errorMessage));
     }
 
     if (stat.blasting == false && stat.dicing == false &&

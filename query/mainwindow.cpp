@@ -80,11 +80,12 @@ void MainWindow::setupUI()
 {
     auto* central = new QWidget(this);
     auto* rootLayout = new QVBoxLayout(central);
-    rootLayout->setContentsMargins(4, 4, 4, 4);
-    rootLayout->setSpacing(4);
+    rootLayout->setContentsMargins(12, 8, 12, 8);
+    rootLayout->setSpacing(6);
 
     // ── Top bar ──────────────────────────────────────────────────
     auto* topBar = new QHBoxLayout;
+    topBar->setContentsMargins(4, 4, 4, 4);
     topBar->setSpacing(8);
 
     m_geneSelector = new deepn::GeneSelectorWidget(this);
@@ -188,6 +189,7 @@ void MainWindow::setupUI()
 
     // ── Bottom bar ───────────────────────────────────────────────
     auto* bottomBar = new QHBoxLayout;
+    bottomBar->setContentsMargins(4, 4, 4, 4);
     bottomBar->setSpacing(8);
 
     m_collapseCheck = new QCheckBox("Collapse by Position", this);

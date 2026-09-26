@@ -33,28 +33,63 @@ JDWorker::JDWorker(JDStat* jdstat, int fcount) {
                       basename + suffix + ".sqlite";
   stat->mstat.output = fileInfo.absolutePath() + "/../mapped_files/" +
                        basename + suffix + ".txt";
+  // Build tier-1 junction pattern (full matchLength bases).
+  // First (matchLength - 3) positions: allow expected nucleotide OR N (sequencer
+  // ambiguity code). Last 3 positions: any nucleotide (loose 3' boundary).
   int char_count = 0;
   stat->dstat.match = stat->dstat.junction.right(stat->dstat.matchLength);
   foreach (QChar c, stat->dstat.match) {
     if (char_count < stat->dstat.matchLength - 3) {
-      jseq_pattern += QString("[%1|N]").arg(c);
+      jseq_pattern += QString("[%1N]").arg(c);
     } else {
-      jseq_pattern += QString("[A|T|G|C|N]");
+      jseq_pattern += QString("[ATGCN]");
     }
     char_count++;
   }
-  repeats_sequence = QString("(?:([A|T|G|C|N])(\\1{20,}))");
+
+  // Build tier-2 pattern (rightmost 2/3 of matchLength).
+  // All positions allow the expected nucleotide OR N — recovers reads where
+  // sequencing errors cluster in the 5' (outer) part of the junction.
+  {
+    int matchLen2 = qMax(5, stat->dstat.matchLength * 2 / 3);
+    if (matchLen2 < stat->dstat.matchLength) {
+      QString match2 = stat->dstat.junction.right(matchLen2);
+      foreach (QChar c, match2)
+        jseq_pattern2 += QString("[%1N]").arg(c);
+    }
+  }
+
+  // Build tier-3 pattern (rightmost 1/3 of matchLength, minimum 5 bases).
+  // Each position allows expected base OR N — catches reads with N-calls
+  // across much of the junction but clear sequence at the 3' boundary.
+  {
+    int matchLen3 = qMax(5, stat->dstat.matchLength / 3);
+    if (matchLen3 < stat->dstat.matchLength * 2 / 3) {
+      QString match3 = stat->dstat.junction.right(matchLen3);
+      foreach (QChar c, match3)
+        jseq_pattern3 += QString("[%1N]").arg(c);
+    }
+  }
+
+  repeats_sequence = QString("(?:([ATGCN])(\\1{20,}))");
 }
 
 void JDWorker::createDepthDatabase() {
   db = QSqlDatabase::addDatabase("QSQLITE", dbConnectionName);
   db.setDatabaseName(readDepthFileName);
   QFileInfo dbInfo(readDepthFileName);
+  QDir().mkpath(dbInfo.absolutePath());
   if (dbInfo.exists()) {
     QFile::remove(dbInfo.absoluteFilePath());
   }
   if (!db.open()) {
-    qDebug() << "Error opening database";
+    stat->errorMessage = QString("Cannot open depth database: %1\n%2")
+        .arg(readDepthFileName, db.lastError().text());
+    stat->dicing = false;
+    emit sig->jd_update_progress_sig();
+    emit sig->jd_finished_sig();
+    emit finished();
+    return;
   }
   query = QSqlQuery(QSqlDatabase::database(dbConnectionName));
   query.exec("PRAGMA auto_vacuum = FULL;");
@@ -75,6 +110,7 @@ void JDWorker::createDepthDatabase() {
 JDWorker::~JDWorker() { process.close(); }
 
 void JDWorker::mapCallBack() {
+  if (mapFinished) return;
   QFile file(stat->mstat.output);
   stat->mstat.elapsedTime = elapsedTimer.elapsed() / 1000;
   if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -94,11 +130,32 @@ void JDWorker::mapCallBack() {
     file.close();
     if (!lastRead.isEmpty()) {
       stat->mstat.currentRead = lastRead;
-      int idx = readNames.indexOf(lastRead);
-      if (idx >= 0 && readNames.length() > 0) {
-        stat->mstat.percentComplete = idx * 100 / readNames.length();
+      int idx = readIndex.value(lastRead, -1);
+      if (idx >= 0 && readIndex.size() > 0) {
+        stat->mstat.percentComplete = static_cast<float>(idx) * 100.0f / readIndex.size();
       }
     }
+  }
+
+  // Stall detection: abort if output file never appears (60s) or stays
+  // empty (2 min) — covers both "aligner never started" and "aligner crashed"
+  mapPollCount++;
+  QFileInfo mappedFileInfo(stat->mstat.output);
+  bool stallDetected = (mapPollCount >= 20 && !mappedFileInfo.exists()) ||
+                       (mapPollCount >= 40 && mappedFileInfo.size() == 0);
+  if (stallDetected) {
+    stat->errorMessage = QString(
+        "Mapping produced no output after 60 seconds. "
+        "The reference database may be inaccessible or the aligner failed.\n"
+        "Command: %1").arg(stat->mstat.map_command);
+    stat->blasting = false;
+    elapsedTimer.invalidate();
+    mapFinished = true;
+    mapTimer->stop();
+    emit sig->jd_update_progress_sig();
+    emit sig->jd_finished_sig();
+    emit finished();
+    return;
   }
 
   if (stat->mstat.percentComplete < 98) {
@@ -107,6 +164,7 @@ void JDWorker::mapCallBack() {
     stat->mstat.percentComplete = 100;
     stat->blasting = false;
     elapsedTimer.invalidate();
+    mapFinished = true;
     mapTimer->stop();
     emit sig->jd_update_progress_sig();
     emit sig->jd_finished_sig();
@@ -144,13 +202,13 @@ QString JDWorker::reverseComplement(QString dna_sequence) {
   for (QChar &base : dna_sequence) {
     if (base == 'A') {
       base = complement_map[0];  // 'A' complements to 'T'
-    } else if (base == "C") {
+    } else if (base == 'C') {
       base = complement_map[1];  // 'C' complements to 'G'
-    } else if (base == "G") {
+    } else if (base == 'G') {
       base = complement_map[2];  // 'G' complements to 'C'
-    } else if (base == "T") {
+    } else if (base == 'T') {
       base = complement_map[3];  // 'T' complements to 'A'
-    } else if (base == "N") {
+    } else if (base == 'N') {
       base = complement_map[4];  // 'N' (unknown base) complements to 'N'
     }
     complement_sequence.push_back(base);
@@ -179,7 +237,7 @@ QString JDWorker::translate(QString dna) {
 
   for (int i = 0; i < dna.length() - 2; i += 3) {
     QString codon = dna.mid(i, 3);
-    QString aminoAcid = geneticCode[codon];
+    QString aminoAcid = geneticCode.value(codon, "X");
     protein += aminoAcid;
   }
   return protein;
@@ -188,7 +246,12 @@ QString JDWorker::translate(QString dna) {
 void JDWorker::readDice() {
   QFile file(stat->dstat.output);
   if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    qWarning() << "Failed to open file";
+    stat->errorMessage = QString(
+        "Cannot re-read diced FASTA: %1\n"
+        "The file may have been moved or deleted.")
+        .arg(stat->dstat.output);
+    emit finished();
+    return;
   }
 
   QTextStream in(&file);
@@ -196,9 +259,9 @@ void JDWorker::readDice() {
     QString line = in.readLine();
     if (line.startsWith(">")) {
       line.replace(">", "");
-      readNames.append(line);
+      readIndex.insert(line, readIndex.size());
     }
-    if (stat->dstat.elapsedTime % 2000 == 0) {
+    if (readIndex.size() % 50000 == 0) {
       stat->dstat.elapsedTime = elapsedTimer.elapsed() / 1000;
       emit sig->jd_update_progress_sig();
     }
@@ -208,11 +271,24 @@ void JDWorker::readDice() {
 
 void JDWorker::doDice() {
   QString line;
-  // TODO: Go for 27 base pairs instead of 21
   QRegularExpression pattern(jseq_pattern);
+  QRegularExpression pattern2(!jseq_pattern2.isEmpty() ? jseq_pattern2 : jseq_pattern);
+  QRegularExpression pattern3(!jseq_pattern3.isEmpty() ? jseq_pattern3 : jseq_pattern);
+  const bool hasTier2 = !jseq_pattern2.isEmpty();
+  const bool hasTier3 = !jseq_pattern3.isEmpty();
   QRegularExpression repeat_pattern(repeats_sequence);
+  QDir().mkpath(QFileInfo(stat->dstat.output).absolutePath());
   QFile of(stat->dstat.output);
-  of.open(QIODevice::WriteOnly | QIODevice::Text);
+  if (!of.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    stat->errorMessage = QString(
+        "Cannot create output file: %1\n"
+        "Check that the output directory exists and is writable.")
+        .arg(stat->dstat.output);
+    stat->dicing = false;
+    emit sig->jd_update_progress_sig();
+    emit finished();
+    return;
+  }
   QTextStream out(&of);
 
   std::unique_ptr<std::istream> is_p = std::unique_ptr<std::istream>(
@@ -231,13 +307,23 @@ void JDWorker::doDice() {
         if (line.startsWith("@")) {
           stat->dstat.totalReads += 1;
           stat->dstat.currentRead = line.split(QRegularExpression("\\s+")).at(0);
-          readNames.append(stat->dstat.currentRead);
         } else if (line.contains(QRegularExpression("^[ATGCN]+$"))) {
           QRegularExpressionMatch repeat_match = repeat_pattern.match(line);
           if (!repeat_match.hasMatch()) {
             QString reverseSeq = reverseComplement(line);
+            // Three-tier junction search (Piper 2016): try progressively shorter
+            // patterns to recover reads with sequencing errors in the 5' part of the
+            // junction sequence.
             QRegularExpressionMatch match = pattern.match(line);
             QRegularExpressionMatch rev_match = pattern.match(reverseSeq);
+            if (!match.hasMatch() && !rev_match.hasMatch() && hasTier2) {
+              match = pattern2.match(line);
+              rev_match = pattern2.match(reverseSeq);
+            }
+            if (!match.hasMatch() && !rev_match.hasMatch() && hasTier3) {
+              match = pattern3.match(line);
+              rev_match = pattern3.match(reverseSeq);
+            }
             if (match.hasMatch()) {
               line_slice_len = line.length() - (match.capturedStart(0) +
                                                 match.capturedLength(0));
@@ -247,6 +333,7 @@ void JDWorker::doDice() {
                 out << seq << Qt::endl;
                 sql_ids << stat->dstat.currentRead;
                 sql_seqs << seq;
+                readIndex.insert(stat->dstat.currentRead, readIndex.size());
                 stat->dstat.forwardMatches += 1;
                 stat->dstat.writtenReads += 1;
               } else {
@@ -261,17 +348,15 @@ void JDWorker::doDice() {
                 out << seq << Qt::endl;
                 sql_ids << stat->dstat.currentRead;
                 sql_seqs << seq;
+                readIndex.insert(stat->dstat.currentRead, readIndex.size());
                 stat->dstat.reverseMatches += 1;
                 stat->dstat.writtenReads += 1;
               } else {
                 stat->dstat.removedReads += 1;
               }
             } else {
-              out << ">" << stat->dstat.currentRead << Qt::endl;
-              out << line << Qt::endl;
-              sql_ids << stat->dstat.currentRead;
-              sql_seqs << line;
-              stat->dstat.writtenReads += 1;
+              // No junction match in forward or reverse — discard read.
+              stat->dstat.removedReads += 1;
             }
             if (stat->dstat.totalReads % 50000 == 0) {
               query.bindValue(":read", sql_ids);
@@ -301,6 +386,9 @@ void JDWorker::doDice() {
     query.execBatch();
   }
   query.exec("CREATE INDEX reads_idx ON reads (read)");
+  // Commit transaction before WAL checkpoint — checkpoint is a no-op inside
+  // an open write transaction.
+  db.commit();
   // Checkpoint WAL and switch to DELETE journal so WAL/SHM files are removed
   query.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   query.exec("PRAGMA journal_mode = DELETE");
@@ -308,9 +396,12 @@ void JDWorker::doDice() {
   stat->dicing = false;
   writeDiceSummary();
   delete[] buff;
+  out.flush();
   of.close();
-  db.commit();
+  // Release query reference before removing the connection
+  query = QSqlQuery();
   db.close();
+  QSqlDatabase::removeDatabase(dbConnectionName);
   emit sig->jd_update_progress_sig();
 }
 
@@ -397,14 +488,20 @@ void JDWorker::doMapping() {
     args << options.split(QRegularExpression("\\s+")) << "-query" << stat->dstat.output
          << "-db" << stat->mstat.db << "-out" << stat->mstat.output;
   }
+  QDir().mkpath(QFileInfo(stat->mstat.output).absolutePath());
   stat->mstat.map_command = exec_path + " " + args.join(" ");
   qDebug() << "Launching:" << stat->mstat.map_command;
   mapTimer->start(3000);
   // Launch as background process via system() since QProcess::startDetached
-  // silently fails from worker threads on macOS
-  QString cmd = "\"" + QDir::toNativeSeparators(exec_path) + "\"";
+  // silently fails from worker threads on macOS.
+  // Double-quotes inside path components are escaped so the shell does not
+  // interpret them as argument delimiters.
+  auto shellQuote = [](const QString &s) -> QString {
+    return "\"" + QString(s).replace("\"", "\\\"") + "\"";
+  };
+  QString cmd = shellQuote(QDir::toNativeSeparators(exec_path));
   for (const QString &arg : args) {
-    cmd += " \"" + arg + "\"";
+    cmd += " " + shellQuote(arg);
   }
   cmd += " &";
   qDebug() << "system():" << cmd;

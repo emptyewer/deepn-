@@ -320,15 +320,25 @@ namespace deseq2
             double disp_mle = genewise_dispersions_(j);
             double disp_fitted = fitted_dispersions_(j);
 
-            // MAP estimate using log-space posterior mode
+            // MAP estimate using log-space posterior mode.
+            // DESeq2 rule (Love 2014): if MLE is below the fitted trend, use MLE
+            // directly — no upward shrinkage, as such genes have genuinely low
+            // dispersion (common in Y2H non-selective controls).
             double disp_map;
             if (disp_mle > 0 && disp_fitted > 0)
             {
-                double log_disp_mle = std::log(disp_mle);
-                double log_disp_fitted = std::log(disp_fitted);
-                double log_map = (log_disp_mle / prior_disp_var_ + log_disp_fitted) /
-                                 (1.0 / prior_disp_var_ + 1.0);
-                disp_map = std::exp(log_map);
+                if (disp_mle < disp_fitted)
+                {
+                    disp_map = disp_mle;
+                }
+                else
+                {
+                    double log_disp_mle = std::log(disp_mle);
+                    double log_disp_fitted = std::log(disp_fitted);
+                    double log_map = (log_disp_mle / prior_disp_var_ + log_disp_fitted) /
+                                     (1.0 / prior_disp_var_ + 1.0);
+                    disp_map = std::exp(log_map);
+                }
             }
             else
             {

@@ -11,6 +11,7 @@ struct GCStat {
   QString readName = "";
   int elapsedTime;
   bool running = true;
+  QString errorMessage;
 };
 
 #endif // DATASTRUCTS_H

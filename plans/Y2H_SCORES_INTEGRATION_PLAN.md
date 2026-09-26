@@ -3,7 +3,7 @@
 **Module:** Y2H-SCORES — Three-metric interaction scoring for Y2H screens
 **Reference:** Velásquez-Zapata et al. (2021) PLoS Computational Biology 17(4):e1008890
 **Source:** /Users/ominus/Downloads/Y2H-SCORES-master/
-**Goal:** Implement as a C++ analysis mode alongside DESeq2++ in the same GUI
+**Goal:** Implement as part of the unified **StatMaker** GUI, where DESeq2 statistics and full Y2H-SCORES run together and write a merged result set
 
 ---
 
@@ -25,12 +25,12 @@ The three scores are combined via **Borda rank aggregation** into a consensus sc
 
 ## 2. Architecture in DEEPN++
 
-### Option: Integrated Tab in DESeq2++ GUI
+### Option: Integrated Tab in StatMaker GUI
 
-Add a **"Y2H-SCORES"** tab to the existing DESeq2++ application:
+Add a **"Y2H-SCORES"** tab to the existing StatMaker application:
 
 ```
-DESeq2++ Tabs:
+StatMaker Tabs:
 ├── Input (existing — file loading, group assignment)
 ├── Analysis (existing — DESeq2 pipeline)
 ├── Results (existing — DESeq2 results table)
@@ -240,7 +240,7 @@ class BordaAggregator {
 
 ### Phase 6: Unified Output (DESeq2 + Y2H-SCORES merged)
 
-When the user runs analysis, **both DESeq2 and Y2H-SCORES run together** and produce a single merged output file (CSV + SQLite).
+When the user runs analysis, **both DESeq2 and the full Y2H-SCORES pipeline run together** and produce a single merged output file set (CSV + SQLite).
 
 **Combined CSV output format:**
 ```csv
@@ -272,13 +272,28 @@ CREATE TABLE analysis_results (
 );
 ```
 
-**Analysis flow:** One "Run Analysis" button triggers both:
+**Recommended output path:**
+- Working directory: `<workdir>/analyzed_files/`
+- Autocreate if missing before writing results
+- Merged results database: `<workdir>/analyzed_files/statmaker_results.sqlite`
+
+This file must be kept separate from JunctionDice++ depth databases so downstream tools can distinguish:
+- per-sample junction/depth SQLite files
+- merged StatMaker analysis output
+
+**Analysis flow:** One "Run Analysis" button triggers the full pipeline:
 1. DESeq2 pipeline → p-values, fold changes
 2. Y2H-SCORES enrichment → rank-based enrichment score
 3. Y2H-SCORES specificity → pairwise bait ranking
 4. Y2H-SCORES in-frame → junction read frame test
 5. Borda aggregation
 6. Merge all columns → single CSV + SQLite output
+
+**Gap from current implementation:**
+- Enrichment runs today
+- Specificity is not yet wired from the GUI worker path
+- In-frame scoring is not yet wired from the GUI worker path
+- The UI threshold widgets are not yet fully applied to the scorer calls
 
 ---
 

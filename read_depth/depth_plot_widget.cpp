@@ -498,7 +498,8 @@ void DepthPlotWidget::wheelEvent(QWheelEvent* event)
     newMax = qMin(newMax, m_fullXMax);
 
     m_xAxis->setRange(newMin, newMax);
-    m_zoomLevel = fullRange / (newMax - newMin);
+    if (newMax > newMin)
+        m_zoomLevel = fullRange / (newMax - newMin);
 
     // Update cursor style
     if (m_zoomLevel > 1.01) {

@@ -14,8 +14,8 @@ MAKEMBINDEX  = ncbi/build/bin/makembindex
 
 CODESIGN_IDENTITY ?= Developer ID Application: Proteverse LLC (4D867DTJWY)
 
-VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-ARCHIVE     ?= DEEPN++-$(VERSION)-macOS.tar.gz
+APP_VERSION ?= $(shell awk -F'VERSION ' '/^project/{split($$2,a," ");print a[1]}' CMakeLists.txt)
+ARCHIVE     ?= DEEPN++-macOS-v$(APP_VERSION).tar.gz
 
 .PHONY: help submodules configure compile build build-quick blast-db blast-db-copy codesign package clean rebuild distclean
 
@@ -70,6 +70,9 @@ blast-db-copy:
 	@cp -R $(BUILD_DIR)/junction_dice/JunctionDice++.app $(BUILD_DIR)/deepn/DEEPN++.app/Contents/Resources/ 2>/dev/null || true
 
 codesign:
+	@echo "Fixing Qt framework symlinks..."
+	$(CMAKE) "-DAPP_PATH=$(BUILD_DIR)/deepn/DEEPN++.app" -P cmake/fix_frameworks.cmake
+	@echo "Code signing..."
 	$(CMAKE) \
 		"-DAPP_PATH=$(BUILD_DIR)/deepn/DEEPN++.app" \
 		"-DIDENTITY=$(CODESIGN_IDENTITY)" \

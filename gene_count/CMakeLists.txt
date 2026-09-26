@@ -22,7 +22,16 @@ set_target_properties(gene_count PROPERTIES
     MACOSX_BUNDLE_ICON_FILE gene_count.icns
     MACOSX_BUNDLE_BUNDLE_NAME "GeneCount++"
     MACOSX_BUNDLE_GUI_IDENTIFIER "edu.uiowa.deepn.genecount"
+    MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
 )
+
+if(APPLE AND MACDEPLOYQT_EXECUTABLE)
+    add_custom_command(TARGET gene_count POST_BUILD
+        COMMAND ${MACDEPLOYQT_EXECUTABLE} "$<TARGET_BUNDLE_DIR:gene_count>" -verbose=0 -codesign=-
+        COMMENT "macdeployqt: GeneCount++.app"
+    )
+endif()
 
 if(WIN32)
     target_sources(gene_count PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../icons/gene_count_windows.rc)

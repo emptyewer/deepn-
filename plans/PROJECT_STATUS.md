@@ -239,9 +239,9 @@ Replaces the original GeneCount module. Counts how many sequencing reads map to 
 
 **Note:** The distinction between TotalReads (all mapped reads) and TotalReads(PPM) (reads to known exons) from the original is less relevant in DEEPN++ since mapping is against a gene database rather than the full genome.
 
-### 4. DESeq2++ (Statistics + UI) -- FUNCTIONAL
+### 4. StatMaker (DESeq2 + Y2H Analysis UI) -- FUNCTIONAL, PARTIAL Y2H INTEGRATION
 
-**Added 2026-03-24.** Replaces the original R/JAGS-based StatMaker program.
+**Added 2026-03-24.** This is the current C++ replacement for the original R/JAGS-based StatMaker program. It should now be treated as the unified **StatMaker** product rather than a DESeq2-only GUI.
 
 #### Statistics Library (`deseq2/statistics/`)
 
@@ -261,13 +261,18 @@ Replaces the original GeneCount module. Counts how many sequencing reads map to 
 | Input tab | Complete -- PPM file loading, group assignment (bait vs. control), data generation |
 | Analysis tab | Complete -- run/stop/reset with progress bar, AnalysisWorker on QThread |
 | Results tab | Complete -- sortable table, p-value/log2FC filtering, statistics summary |
-| Visualization tab | Complete -- MA plot, volcano plot, dispersion plot via QCustomPlot |
+| Visualization tab | Complete -- MA plot, volcano plot, dispersion plot via Qt Charts |
 | GeneCountHandler | Complete -- parses PPM files from GeneCount++ output, auto/manual group assignment, count matrix generation |
 | Export | Complete -- CSV export of results |
+| Y2H enrichment score | Partial -- runs in worker and persists to output |
+| Y2H specificity score | Not yet wired in GUI pipeline |
+| Y2H in-frame score | Not yet wired in GUI pipeline |
+| Unified StatMaker SQLite output | Not yet implemented -- still writes `deseq2_results.sqlite` |
+| Gene-name integrity | Risk -- results handoff likely uses invalid cross-thread pointer lifetime |
 
 **Differences from original StatMaker:**
 
-| Feature | Original StatMaker | DESeq2++ |
+| Feature | Original StatMaker | Current StatMaker GUI |
 |---------|-------------------|----------|
 | Platform | Mac OS X only | Cross-platform (Qt5) |
 | Statistical method | Bayesian MCMC via R + JAGS; posterior probability of enrichment | Frequentist: negative binomial GLM, Wald test, BH-adjusted p-values |
@@ -275,10 +280,10 @@ Replaces the original GeneCount module. Counts how many sequencing reads map to 
 | Comparison modes | Explicit **two-way** (vector vs. 1 bait) and **three-way** (vector vs. bait1 vs. bait2) with drag-and-drop file assignment | General design matrix (supports arbitrary contrasts) |
 | PPM threshold | Configurable (default 3 PPM); genes below threshold excluded pre-analysis | Filtering via independent filtering step in DeseqStats |
 | File input | Drag-and-drop GeneCount CSVs into Vector/Bait/Selected/Non-Selected slots | Tab-based PPM file loading with group assignment |
-| Output | `statmaker_output.csv` with p-values 0-1 | CSV with base mean, log2FC, SE, Wald stat, p-value, adjusted p-value |
-| Visualization | None (external tools like GraphPad Prism) | Built-in MA plot, volcano plot, dispersion plot (QCustomPlot) |
+| Output | `statmaker_output.csv` with p-values 0-1 | CSV + SQLite, but should be standardized to `analyzed_files/statmaker_results.sqlite` |
+| Visualization | None (external tools like GraphPad Prism) | Built-in MA plot, volcano plot, dispersion plot (Qt Charts) |
 
-**Note:** The original StatMaker's drag-and-drop interface for assigning files to Vector/Bait categories was very user-friendly for the Y2H workflow. DESeq2++'s group assignment serves the same purpose but could be enhanced with explicit "Vector Control" / "Bait" / "Selected" / "Non-Selected" labeling to match the Y2H mental model.
+**Note:** The original StatMaker's drag-and-drop interface for assigning files to Vector/Bait categories was very user-friendly for the Y2H workflow. The current StatMaker group's assignment serves the same purpose but could be enhanced with explicit "Vector Control" / "Bait" / "Selected" / "Non-Selected" labeling to match the Y2H mental model.
 
 ### 5. MultiQuery++ -- SKELETON ONLY
 

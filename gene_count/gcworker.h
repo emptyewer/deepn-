@@ -30,7 +30,7 @@ class GCWorker : public QObject {
   GCStat *stat;
   QString mappedOuputDBName;
   QString writeDbConn;
-  void setupDB();
+  bool setupDB();
   void writeReadHitsToDB(ReadHits& hits);
   void writeToDatabase(QList<ReadHits> *collectedReads);
   void readMapOutput();

@@ -5,66 +5,6 @@
 
 namespace deseq2 {
 
-// Helper: apply KDE-based relative fold-change weighting
-// Replicates the R `get_rel_fc_score` function from Y2H-SCORES
-static void applyKdeWeighting(
-    std::vector<double>& rank_scores,
-    const std::vector<double>& fc_values,
-    std::vector<double>& total_scores,
-    int n_bins)
-{
-    if (rank_scores.empty()) return;
-
-    // Find bin edges (evenly spaced across rank_score range)
-    double min_score = *std::min_element(rank_scores.begin(), rank_scores.end());
-    double max_score = *std::max_element(rank_scores.begin(), rank_scores.end());
-    double bin_width = (max_score - min_score + 1e-10) / n_bins;
-
-    total_scores.resize(rank_scores.size());
-
-    // Assign each element to a bin
-    std::vector<int> bin_indices(rank_scores.size());
-    for (size_t i = 0; i < rank_scores.size(); i++) {
-        bin_indices[i] = std::min(n_bins - 1,
-            static_cast<int>((rank_scores[i] - min_score) / bin_width));
-    }
-
-    // For each bin, rank by fold change and compute relative contribution
-    for (int b = 0; b < n_bins; b++) {
-        // Collect indices in this bin
-        std::vector<size_t> in_bin;
-        for (size_t i = 0; i < bin_indices.size(); i++) {
-            if (bin_indices[i] == b) in_bin.push_back(i);
-        }
-        if (in_bin.empty()) continue;
-
-        // Rank by FC within bin
-        std::vector<std::pair<double, size_t>> fc_rank;
-        for (size_t idx : in_bin) {
-            fc_rank.push_back({fc_values[idx], idx});
-        }
-        std::sort(fc_rank.begin(), fc_rank.end());
-
-        double max_rank = static_cast<double>(fc_rank.size());
-        double bin_min_score = rank_scores[in_bin[0]];
-        double bin_max_score = rank_scores[in_bin[0]];
-        for (size_t idx : in_bin) {
-            bin_min_score = std::min(bin_min_score, rank_scores[idx]);
-            bin_max_score = std::max(bin_max_score, rank_scores[idx]);
-        }
-
-        double bin_count = static_cast<double>(in_bin.size());
-
-        for (size_t r = 0; r < fc_rank.size(); r++) {
-            size_t idx = fc_rank[r].second;
-            double rel_fc_score = (r + 1.0) / max_rank;
-            double contribution = rel_fc_score *
-                (bin_max_score - bin_min_score + 0.0001) / bin_count;
-            total_scores[idx] = rank_scores[idx] + contribution;
-        }
-    }
-}
-
 // Helper: compute ranks (1 = smallest, ties get average rank)
 static std::vector<double> computeRanks(const std::vector<double>& values) {
     int n = values.size();
@@ -86,6 +26,94 @@ static std::vector<double> computeRanks(const std::vector<double>& values) {
         i = j;
     }
     return ranks;
+}
+
+// Helper: 2D Gaussian KDE density estimation
+// Uses Silverman bandwidth h = 1.06 * sigma * n^(-1/5) per dimension.
+// x_vals and y_vals must be pre-normalized to [0,1].
+static void computeGaussianKDE2D(
+    const std::vector<double>& x_vals,
+    const std::vector<double>& y_vals,
+    std::vector<double>& densities)
+{
+    int n = static_cast<int>(x_vals.size());
+    densities.assign(n, 0.0);
+    if (n <= 1) {
+        if (n == 1) densities[0] = 1.0;
+        return;
+    }
+
+    auto stddev = [](const std::vector<double>& v) {
+        double mean = 0;
+        for (double x : v) mean += x;
+        mean /= v.size();
+        double var = 0;
+        for (double x : v) var += (x - mean) * (x - mean);
+        return std::sqrt(var / v.size());
+    };
+
+    double npow = std::pow(static_cast<double>(n), -0.2);
+    double h_x = std::max(1e-8, 1.06 * stddev(x_vals) * npow);
+    double h_y = std::max(1e-8, 1.06 * stddev(y_vals) * npow);
+
+    static constexpr double TWO_PI = 6.283185307179586;
+    double norm = 1.0 / (TWO_PI * n * h_x * h_y);
+
+    for (int i = 0; i < n; i++) {
+        double d = 0.0;
+        for (int j = 0; j < n; j++) {
+            double dx = (x_vals[i] - x_vals[j]) / h_x;
+            double dy = (y_vals[i] - y_vals[j]) / h_y;
+            d += std::exp(-0.5 * (dx * dx + dy * dy));
+        }
+        densities[i] = d * norm;
+    }
+}
+
+// Helper: apply KDE-based relative fold-change weighting
+// Replicates get_rel_fc_score from Y2H-SCORES (Velásquez-Zapata 2021).
+// Uses Gaussian 2D KDE with Silverman bandwidth selection.
+// Genes in sparse (rank_score, log2FC) space receive a larger contribution,
+// encoding the property that uncrowded signals are more reliable than cluster members.
+// n_bins retained for signature compatibility but is not used.
+static void applyKdeWeighting(
+    std::vector<double>& rank_scores,
+    const std::vector<double>& fc_values,
+    std::vector<double>& total_scores,
+    int /* n_bins */)
+{
+    int n = static_cast<int>(rank_scores.size());
+    total_scores.resize(n);
+    if (n == 0) return;
+    if (n == 1) { total_scores[0] = rank_scores[0]; return; }
+
+    double x_min = *std::min_element(rank_scores.begin(), rank_scores.end());
+    double x_max = *std::max_element(rank_scores.begin(), rank_scores.end());
+    double y_min = *std::min_element(fc_values.begin(), fc_values.end());
+    double y_max = *std::max_element(fc_values.begin(), fc_values.end());
+
+    double x_range = std::max(1e-10, x_max - x_min);
+    double y_range = std::max(1e-10, y_max - y_min);
+
+    std::vector<double> x_norm(n), y_norm(n);
+    for (int i = 0; i < n; i++) {
+        x_norm[i] = (rank_scores[i] - x_min) / x_range;
+        y_norm[i] = (fc_values[i] - y_min) / y_range;
+    }
+
+    // Compute 2D Gaussian KDE density for each gene
+    std::vector<double> densities;
+    computeGaussianKDE2D(x_norm, y_norm, densities);
+
+    // Rank densities: rank 1 = most sparse = highest contribution
+    std::vector<double> density_ranks = computeRanks(densities);
+
+    // Contribution ∈ [0, x_range/n]: sparse genes receive the full bonus
+    double scale = x_range / n;
+    for (int i = 0; i < n; i++) {
+        double sparsity = 1.0 - density_ranks[i] / n;
+        total_scores[i] = rank_scores[i] + sparsity * scale;
+    }
 }
 
 // ============================================================================

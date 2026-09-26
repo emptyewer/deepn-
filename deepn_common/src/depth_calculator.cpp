@@ -102,6 +102,9 @@ DepthProfile DepthCalculator::calculate(const QString& dbPath,
             while (q.next()) {
                 spans.append({q.value(1).toInt(), q.value(2).toInt()});
             }
+        } else {
+            m_error = QStringLiteral("Depth query failed: %1").arg(q.lastError().text());
+            qDebug() << m_error;
         }
         q.clear();
 

@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -24,8 +25,9 @@ namespace deseq2
             throw std::invalid_argument("Dataset must be 'synthetic'");
         }
 
-        // Use absolute path based on workspace root
-        std::string base_path = "/Users/venky/Projects/deepn-plus/PyDESeq2/datasets/synthetic/";
+        // Path: DEEPN_TEST_DATA_PATH env var, or relative "datasets/synthetic/"
+        const char *env_path = std::getenv("DEEPN_TEST_DATA_PATH");
+        std::string base_path = env_path ? std::string(env_path) + "/" : "datasets/synthetic/";
         if (modality == "raw_counts")
         {
             return loadCSV(base_path + "test_counts.csv");
@@ -646,7 +648,7 @@ namespace deseq2
         return std::make_tuple(deseq2_counts, size_factors);
     }
 
-    std::tuple<std::string, int, int> extractSampleInfo(const std::string &file_path)
+    std::tuple<std::string, int64_t, int64_t> extractSampleInfo(const std::string &file_path)
     {
         std::ifstream file(file_path);
         if (!file.is_open())
@@ -655,8 +657,8 @@ namespace deseq2
         }
 
         std::string sample_name;
-        int total_reads = 0;
-        int total_hits = 0;
+        int64_t total_reads = 0;
+        int64_t total_hits = 0;
         std::string line;
 
         // Read first line to get sample name
@@ -695,7 +697,7 @@ namespace deseq2
             {
                 try
                 {
-                    total_reads = std::stoi(cell);
+                    total_reads = std::stoll(cell);
                 }
                 catch (const std::exception &)
                 {
@@ -716,7 +718,7 @@ namespace deseq2
             {
                 try
                 {
-                    total_hits = std::stoi(cell);
+                    total_hits = std::stoll(cell);
                 }
                 catch (const std::exception &)
                 {
@@ -730,7 +732,7 @@ namespace deseq2
     }
 
     std::tuple<std::vector<std::string>, std::vector<double>, std::vector<int>>
-    parsePpmFile(const std::string &file_path, int total_reads)
+    parsePpmFile(const std::string &file_path, int64_t total_reads)
     {
         std::ifstream file(file_path);
         if (!file.is_open())
@@ -823,7 +825,7 @@ namespace deseq2
     convertPpmToDeseq2Format(
         const std::vector<std::string> &file_paths,
         const std::vector<std::string> &sample_names,
-        const std::vector<int> &total_reads)
+        const std::vector<int64_t> &total_reads)
     {
         if (file_paths.empty())
         {
@@ -846,7 +848,7 @@ namespace deseq2
         }
 
         // Determine total reads
-        std::vector<int> final_total_reads;
+        std::vector<int64_t> final_total_reads;
         if (total_reads.empty())
         {
             for (const auto &file_path : file_paths)

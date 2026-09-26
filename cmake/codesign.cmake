@@ -43,6 +43,22 @@ endfunction()
 
 message(STATUS "codesign: signing '${APP_PATH}' with identity '${IDENTITY}'")
 
+# ── Step 0: Strip all existing signatures ────────────────────────────────────
+# macdeployqt -codesign=- sometimes leaves _CodeSignature/CodeResources dirs
+# without a corresponding embedded binary signature.  codesign --force will
+# fail with errSecInternalComponent if it encounters this inconsistent state.
+# Wipe every _CodeSignature directory and embedded dylib signature first so
+# we always sign from a fully clean slate.
+message(STATUS "codesign: stripping all existing signatures")
+execute_process(
+    COMMAND sh -c "find '${APP_PATH}' -name '_CodeSignature' -type d -prune -exec rm -rf '{}' +"
+    OUTPUT_QUIET ERROR_QUIET
+)
+file(GLOB_RECURSE _strip_dylibs "${APP_PATH}/Contents/*.dylib")
+foreach(_f IN LISTS _strip_dylibs)
+    execute_process(COMMAND codesign --remove-signature "${_f}" OUTPUT_QUIET ERROR_QUIET)
+endforeach()
+
 # ── Step 1: Sign all loose dylibs ────────────────────────────────────────────
 file(GLOB_RECURSE _dylibs "${APP_PATH}/Contents/*.dylib")
 foreach(_f IN LISTS _dylibs)

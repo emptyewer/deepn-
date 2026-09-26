@@ -1,14 +1,14 @@
-# DESeq2++ Integration & Y2H Adaptation Plan
+# StatMaker Integration & Y2H Adaptation Plan
 
-**Module:** Statistical Analysis -- Y2H Workflow Adaptation & Pipeline Integration
+**Module:** Statistical Analysis -- StatMaker Y2H Workflow Adaptation & Pipeline Integration
 **Current Status:** Functional standalone (CMake, C++17, Eigen3)
-**Goal:** Adapt for Y2H screening workflow, integrate into DEEPN++ orchestrator, unify build
+**Goal:** Adapt the current GUI into unified StatMaker for Y2H screening workflow, integrate into DEEPN++ orchestrator, and unify build
 
 ---
 
 ## 1. Vision
 
-DESeq2++ currently works as a generic differential expression tool. It needs to become **Y2H-native** -- where the UI, defaults, and workflow directly reflect the biology of competitive Y2H screening. A researcher should be able to drop in their GeneCount++ files, assign them to bait/control groups intuitively, run the analysis, and navigate directly to MultiQuery++ or ReadDepth++ for any candidate gene.
+The current GUI started as a DESeq2-focused application, but it now needs to become **StatMaker**: one Y2H-native analysis surface that runs DESeq2 statistics plus the full Y2H-SCORES ranking pipeline. A researcher should be able to drop in their GeneCount++ files, assign them to bait/control groups intuitively, run the analysis, and navigate directly to MultiQuery++ or ReadDepth++ for any candidate gene.
 
 ---
 
@@ -19,11 +19,11 @@ DESeq2++ currently works as a generic differential expression tool. It needs to 
   - Size factor normalization, dispersion estimation, Wald test, p-value adjustment, LFC shrinkage
   - PPM-to-raw-count conversion via `convertPpmToDeseq2Format()`
   - Cooks distance outlier detection
-- **UI** (`deseq2/ui/`): Four-tab interface
+- **UI** (`deseq2/ui/`): Four-tab interface that should be product-renamed to StatMaker
   - Input tab: PPM file loading, group assignment, data generation
   - Analysis tab: run/stop/reset with threaded worker
   - Results tab: sortable table, filtering, statistics summary
-  - Visualization: MA plot, volcano plot, dispersion plot (QCustomPlot)
+  - Visualization: MA plot, volcano plot, dispersion plot (Qt Charts)
 - **GeneCountHandler**: Parses PPM files, builds count matrices
 
 ### What Needs Work
@@ -35,9 +35,22 @@ DESeq2++ currently works as a generic differential expression tool. It needs to 
 | PPM threshold | No pre-filtering | Configurable (default 3 PPM, as in original StatMaker) |
 | File discovery | Manual file selection | Auto-discover from working directory |
 | Downstream | Results CSV export | Click-through to MultiQuery++ / ReadDepth++ |
+| Unified ranking | Partial enrichment-only Y2H scoring | Full DESeq2 + enrichment + specificity + in-frame + Borda |
+| Output location | Writes `deseq2_results.sqlite` near first input file | Write merged StatMaker output to `analyzed_files/statmaker_results.sqlite` |
 | Build | Separate CMake | Unified with qmake or top-level CMake |
 | CI/CD | Not in pipeline | GitLab CI stages |
 | Launch | Standalone | Launched from DEEPN++ main window |
+
+### 2.1 Product Naming
+
+The user-facing name should be **StatMaker** everywhere:
+- window title
+- bundle / executable naming
+- result file naming
+- progress text
+- documentation and plans
+
+The source directory can remain `deseq2/` until a later repository cleanup, but all user-visible surfaces should stop presenting this as a DESeq2-only application.
 
 ---
 
@@ -198,7 +211,7 @@ Current plots (MA, volcano, dispersion) are good. Add:
 
 ### 5.1 Launch Protocol
 
-DESeq2++ launched from the main DEEPN++ window:
+StatMaker launched from the main DEEPN++ window:
 ```
 DESeq2++ --workdir /path/to/experiment \
          --genecounts gene_count_summary/ \
@@ -211,7 +224,7 @@ On launch with `--workdir`:
 1. Scan `gene_count_summary/` for `*_summary.csv` files
 2. Attempt auto-detection of groups from filenames
 3. Pre-populate the Input tab slots
-4. If DESeq2 results already exist from a previous run, load them into Results tab
+4. If prior StatMaker results already exist in `analyzed_files/statmaker_results.sqlite`, load them into the Results tab
 
 ### 5.3 Main Window Button State
 
@@ -294,9 +307,9 @@ CMakeLists.txt (top-level)
 ### 6.3 Shared Library: `deepn_common`
 
 Extract shared components used by multiple modules:
-- `GeneAnnotationDB` -- gene reference data (MultiQuery++, ReadDepth++, DESeq2++)
+- `GeneAnnotationDB` -- gene reference data (MultiQuery++, ReadDepth++, StatMaker)
 - `GeneSelector` widget -- search/navigation (MultiQuery++, ReadDepth++)
-- `ExportEngine` -- CSV and figure export (MultiQuery++, ReadDepth++, DESeq2++)
+- `ExportEngine` -- CSV and figure export (MultiQuery++, ReadDepth++, StatMaker)
 - `SyncController` -- synchronized panels (MultiQuery++, ReadDepth++)
 - `Signals` singleton pattern -- standardize across modules
 
@@ -378,6 +391,31 @@ For Y2H-naive users, provide context in the Results tab:
 - "These are candidate interactors for your bait protein"
 - "Use MultiQuery++ to inspect individual candidates"
 - Tooltip on enrichment column: "Positive log2FC = enriched with bait = candidate interactor"
+
+### 7.5 Data Integrity Issue: Corrupted Gene Names
+
+The current results-table gene name corruption needs to be treated as a first-class integration issue.
+
+Observed symptom:
+- gene names in the StatMaker results table sometimes contain binary-looking gibberish
+
+Most likely cause from current code:
+- the worker emits `analysisFinished(&analysisResults)` where `analysisResults` is stack-local inside `AnalysisWorker::runAnalysis()`
+- the slot receives a pointer across a thread boundary
+- by the time the UI copies from that pointer, the pointed-to object may already be invalid
+
+Relevant code path:
+- [`deseq2/ui/src/main_window.cpp#L1462`](/Volumes/Projects/deepn++/deseq2/ui/src/main_window.cpp#L1462) for slot consumption
+
+Plan:
+- stop sending stack-owned `AnalysisResults*` across threads
+- use value semantics, explicit heap ownership, or a shared-ownership model with defined lifetime
+- add a validation step that checks gene names for printable text before populating the table or writing SQLite
+- verify that the same gene-name vector is preserved through:
+  - worker output
+  - results table
+  - CSV export
+  - `statmaker_results.sqlite`
 
 ---
 

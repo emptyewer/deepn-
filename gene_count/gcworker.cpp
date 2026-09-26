@@ -21,9 +21,11 @@ GCWorker::GCWorker(GCStat *gcstat) {
 }
 
 void GCWorker::run() {
-  setupDB();
+  if (!setupDB()) return;  // errorMessage + signals already set in setupDB()
   readMapOutput();
+  if (!stat->errorMessage.isEmpty()) return;  // signals already emitted in readMapOutput()
   writeGeneCount();
+  if (!stat->errorMessage.isEmpty()) return;  // signals already emitted in writeGeneCount()
   emit sig->gc_finished_sig();
   emit finished();
 }
@@ -38,7 +40,11 @@ void GCWorker::writeGeneCount() {
     QSqlDatabase fileDb = QSqlDatabase::addDatabase("QSQLITE", readConn);
     fileDb.setDatabaseName(mappedOuputDBName);
     if (!fileDb.open()) {
-      qDebug() << "Error opening database for gene count:" << fileDb.lastError().text();
+      stat->errorMessage = QString(
+          "Cannot reopen gene count database for aggregation: %1\n%2")
+          .arg(mappedOuputDBName, fileDb.lastError().text());
+      emit sig->gc_finished_sig();
+      emit finished();
       return;
     }
 
@@ -67,15 +73,19 @@ void GCWorker::writeGeneCount() {
         "FROM maps GROUP BY gene ORDER BY COUNT(DISTINCT read) DESC")
         .arg(qMax(totalReads, 1)));
 
-    // Summary metadata
+    // Summary metadata — use parameterized inserts to handle filenames with quotes
     w.exec("CREATE TABLE summary (key TEXT PRIMARY KEY, value TEXT)");
     QFileInfo fileInfo(stat->input);
-    w.exec(QString("INSERT INTO summary VALUES ('file', '%1')")
-        .arg(fileInfo.fileName()));
-    w.exec(QString("INSERT INTO summary VALUES ('total_reads', '%1')")
-        .arg(totalReads));
-    w.exec(QString("INSERT INTO summary VALUES ('total_hits', '%1')")
-        .arg(totalHits));
+    w.prepare("INSERT INTO summary (key, value) VALUES (:k, :v)");
+    w.bindValue(":k", "file");
+    w.bindValue(":v", fileInfo.fileName());
+    w.exec();
+    w.bindValue(":k", "total_reads");
+    w.bindValue(":v", totalReads);
+    w.exec();
+    w.bindValue(":k", "total_hits");
+    w.bindValue(":v", totalHits);
+    w.exec();
 
     // Checkpoint and switch to DELETE mode so WAL/SHM files are removed
     w.exec("PRAGMA wal_checkpoint(TRUNCATE)");
@@ -94,7 +104,14 @@ void GCWorker::readMapOutput() {
   qDebug() << stat->input;
   QFile f(stat->input);
   if (!f.open(QIODevice::ReadOnly)) {
-    qDebug() << "Unable to open file";
+    stat->errorMessage = QString(
+        "Cannot open mapping output file: %1\n"
+        "Ensure Junction Dice++ has run successfully and produced this file.")
+        .arg(stat->input);
+    stat->running = false;
+    emit sig->gc_update_progress_sig();
+    emit sig->gc_finished_sig();
+    emit finished();
     return;
   }
   stat->readCount = 1;
@@ -194,7 +211,7 @@ void GCWorker::readMapOutput() {
   emit sig->gc_update_progress_sig();
 }
 
-void GCWorker::setupDB() {
+bool GCWorker::setupDB() {
   // Ensure output directory exists
   QFileInfo dbInfo(mappedOuputDBName);
   QDir().mkpath(dbInfo.absolutePath());
@@ -202,8 +219,14 @@ void GCWorker::setupDB() {
   db = QSqlDatabase::addDatabase("QSQLITE", writeDbConn);
   db.setDatabaseName(mappedOuputDBName);
   if (!db.open()) {
-    qDebug() << "Error opening database:" << db.lastError().text();
-    return;
+    stat->errorMessage = QString(
+        "Cannot open gene count database: %1\n%2")
+        .arg(mappedOuputDBName, db.lastError().text());
+    stat->running = false;
+    emit sig->gc_update_progress_sig();
+    emit sig->gc_finished_sig();
+    emit finished();
+    return false;
   }
   query = QSqlQuery(db);
   // Constrain SQLite memory usage: small page cache, no mmap, WAL mode
@@ -228,6 +251,7 @@ void GCWorker::setupDB() {
   query.prepare("INSERT INTO maps (read, gene, qstart, qend, refseq, frame, location, rstart, rend) "
                 "VALUES (:read, :gene, :qstart, :qend, :refseq, :frame, :location, :rstart, :rend)");
   db.transaction();
+  return true;
 }
 
 void GCWorker::writeReadHitsToDB(ReadHits& hits) {

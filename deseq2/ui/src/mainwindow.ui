@@ -178,7 +178,7 @@
                </property>
                <item>
                 <property name="text">
-                 <string>DESeq2 + Y2H-SCORES</string>
+                 <string>StatMaker (DESeq2 + Y2H-SCORES)</string>
                 </property>
                </item>
               </widget>

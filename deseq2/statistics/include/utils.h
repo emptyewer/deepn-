@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <fstream>
@@ -224,14 +225,14 @@ namespace deseq2
     convertPpmToDeseq2Format(
         const std::vector<std::string> &file_paths,
         const std::vector<std::string> &sample_names = {},
-        const std::vector<int> &total_reads = {});
+        const std::vector<int64_t> &total_reads = {});
 
     /**
      * @brief Extract sample information from PPM file header
      * @param file_path Path to PPM gene count file
      * @return Tuple of (sample_name, total_reads, total_hits)
      */
-    std::tuple<std::string, int, int> extractSampleInfo(const std::string &file_path);
+    std::tuple<std::string, int64_t, int64_t> extractSampleInfo(const std::string &file_path);
 
     /**
      * @brief Parse PPM gene count data from a single file
@@ -240,6 +241,6 @@ namespace deseq2
      * @return Tuple of (gene_names, ppm_values, raw_counts)
      */
     std::tuple<std::vector<std::string>, std::vector<double>, std::vector<int>>
-    parsePpmFile(const std::string &file_path, int total_reads = 0);
+    parsePpmFile(const std::string &file_path, int64_t total_reads = 0);
 
 } // namespace deseq2

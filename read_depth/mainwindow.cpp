@@ -58,11 +58,12 @@ void MainWindow::setupUI()
     setCentralWidget(central);
 
     auto* mainLayout = new QVBoxLayout(central);
-    mainLayout->setContentsMargins(6, 6, 6, 6);
-    mainLayout->setSpacing(4);
+    mainLayout->setContentsMargins(12, 8, 12, 8);
+    mainLayout->setSpacing(6);
 
     // === Top bar row 1: Gene selector + dataset ===
     auto* topBar1 = new QHBoxLayout();
+    topBar1->setContentsMargins(4, 4, 4, 4);
     topBar1->setSpacing(8);
 
     m_geneSelector = new deepn::GeneSelectorWidget(this);
@@ -79,6 +80,7 @@ void MainWindow::setupUI()
 
     // === Top bar row 2: Interval controls + comparison controls ===
     auto* topBar2 = new QHBoxLayout();
+    topBar2->setContentsMargins(4, 4, 4, 4);
     topBar2->setSpacing(8);
 
     auto* widthLabel = new QLabel("Interval Width:", this);
@@ -205,6 +207,7 @@ void MainWindow::setupUI()
 
     // === Bottom button bar ===
     auto* bottomBar = new QHBoxLayout();
+    bottomBar->setContentsMargins(4, 4, 4, 4);
     bottomBar->setSpacing(8);
 
     auto* resetZoomBtn = new QPushButton("Reset Zoom", this);
@@ -300,7 +303,6 @@ void MainWindow::setupMenuBar()
     QMenu* viewMenu = mb->addMenu("&View");
     viewMenu->addAction("Reset &Zoom", QKeySequence("Ctrl+0"), this, &MainWindow::onResetZoom);
     viewMenu->addAction("Zoom &In", QKeySequence::ZoomIn, this, [this]() {
-        // Simulate zoom in by adjusting axis
         if (m_primaryPlot && m_primaryPlot->depthChart()) {
             auto axes = m_primaryPlot->depthChart()->axes(Qt::Horizontal);
             if (!axes.isEmpty()) {
@@ -308,9 +310,10 @@ void MainWindow::setupMenuBar()
                 if (xAxis) {
                     qreal range = xAxis->max() - xAxis->min();
                     qreal center = (xAxis->max() + xAxis->min()) / 2.0;
-                    qreal newRange = range * 0.8;
-                    if (newRange < 200.0) newRange = 200.0;
-                    xAxis->setRange(center - newRange / 2, center + newRange / 2);
+                    qreal newRange = qMax(range * 0.8, 200.0);
+                    qreal newMin = qMax(center - newRange / 2, xAxis->min() - range);
+                    qreal newMax = qMin(center + newRange / 2, xAxis->max() + range);
+                    xAxis->setRange(newMin, newMax);
                 }
             }
         }
@@ -321,10 +324,15 @@ void MainWindow::setupMenuBar()
             if (!axes.isEmpty()) {
                 auto* xAxis = qobject_cast<QValueAxis*>(axes.first());
                 if (xAxis) {
+                    qreal fullMin = m_primaryProfile.points.isEmpty() ? 0.0
+                        : m_primaryProfile.points.first().position;
+                    qreal fullMax = m_primaryProfile.points.isEmpty() ? 1.0
+                        : m_primaryProfile.points.last().position + m_intervalWidth;
                     qreal range = xAxis->max() - xAxis->min();
                     qreal center = (xAxis->max() + xAxis->min()) / 2.0;
-                    qreal newRange = range * 1.25;
-                    xAxis->setRange(center - newRange / 2, center + newRange / 2);
+                    qreal newMin = qMax(center - range * 1.25 / 2, fullMin);
+                    qreal newMax = qMin(center + range * 1.25 / 2, fullMax);
+                    xAxis->setRange(newMin, newMax);
                 }
             }
         }
@@ -617,6 +625,17 @@ void MainWindow::onExportBoundaryCSV()
     // Build insert extent from current boundary detector state
     deepn::InsertExtent extent;
     extent.threePrimeBoundary = m_primaryBoundary.position;
+    // Resolve 5' junction position using same logic as updateBoundaryInfo()
+    if (m_junctionData.contains(m_currentGene)) {
+        const auto& junctions = m_junctionData[m_currentGene];
+        double bestPpm = 0.0;
+        for (const auto& jnc : junctions) {
+            if (jnc.isInFrame() && jnc.cdsClass == "in_orf" && jnc.ppm > bestPpm) {
+                bestPpm = jnc.ppm;
+                extent.fivePrimeJunction = jnc.position;
+            }
+        }
+    }
     extent.insertLength = extent.threePrimeBoundary - extent.fivePrimeJunction;
 
     deepn::GeneAnnotation annotation = m_annotationDB.findByGeneName(m_currentGene);

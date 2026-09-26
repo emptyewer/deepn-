@@ -23,7 +23,16 @@ set_target_properties(query PROPERTIES
     MACOSX_BUNDLE_ICON_FILE multi_query.icns
     MACOSX_BUNDLE_BUNDLE_NAME "MultiQuery++"
     MACOSX_BUNDLE_GUI_IDENTIFIER "edu.uiowa.deepn.multiquery"
+    MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
 )
+
+if(APPLE AND MACDEPLOYQT_EXECUTABLE)
+    add_custom_command(TARGET query POST_BUILD
+        COMMAND ${MACDEPLOYQT_EXECUTABLE} "$<TARGET_BUNDLE_DIR:query>" -verbose=0 -codesign=-
+        COMMENT "macdeployqt: MultiQuery++.app"
+    )
+endif()
 
 if(WIN32)
     target_sources(query PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../icons/multi_query_windows.rc)

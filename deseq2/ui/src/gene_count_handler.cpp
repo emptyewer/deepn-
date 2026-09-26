@@ -155,9 +155,9 @@ namespace deseq2
                     QString value = summaryQuery.value(1).toString();
 
                     if (key == "total_reads")
-                        data.totalReads = value.toInt();
+                        data.totalReads = value.toLongLong();
                     else if (key == "total_hits")
-                        data.totalHits = value.toInt();
+                        data.totalHits = value.toLongLong();
                 }
             }
             else
@@ -177,7 +177,7 @@ namespace deseq2
                 return data;
             }
 
-            int totalCounts = 0;
+            qint64 totalCounts = 0;
             while (geneQuery.next())
             {
                 QString geneName = geneQuery.value(0).toString().trimmed();
@@ -670,7 +670,7 @@ namespace deseq2
         return -1;
     }
 
-    void GeneCountHandler::extractHeaderInfo(const QStringList &lines, int &totalReads, int &totalHits)
+    void GeneCountHandler::extractHeaderInfo(const QStringList &lines, qint64 &totalReads, qint64 &totalHits)
     {
         totalReads = 0;
         totalHits = 0;
@@ -683,7 +683,7 @@ namespace deseq2
                 QStringList parts = trimmedLine.split(",");
                 if (parts.size() >= 3)
                 {
-                    totalReads = parts[2].trimmed().toInt();
+                    totalReads = parts[2].trimmed().toLongLong();
                 }
             }
             else if (trimmedLine.contains("TotalHits"))
@@ -691,7 +691,7 @@ namespace deseq2
                 QStringList parts = trimmedLine.split(",");
                 if (parts.size() >= 3)
                 {
-                    totalHits = parts[2].trimmed().toInt();
+                    totalHits = parts[2].trimmed().toLongLong();
                 }
             }
         }

@@ -374,6 +374,61 @@ void testEdgeCases() {
 }
 
 // ============================================================================
+// Test 6: Below-Trend No-Shrinkage (Love 2014 DESeq2 rule)
+// ============================================================================
+void testBelowTrendShrinkage() {
+    std::cout << "\n=== Test 6: Below-Trend Dispersion No-Shrinkage ===" << std::endl;
+    std::cout << "  Rule: genes with MLE < fitted trend use MLE directly (Love 2014)" << std::endl;
+
+    // 6 samples (2 conditions x 3 reps), 20 genes:
+    //   - 10 high-overdispersion genes: large within-group variance → MLE above trend
+    //   - 10 near-Poisson genes: very low within-group variance → MLE below trend
+    Eigen::MatrixXd counts(6, 20);
+
+    for (int g = 0; g < 10; g++) {
+        // High overdispersion: wide spread within each condition
+        counts(0, g) = 10;  counts(1, g) = 80;  counts(2, g) = 25;
+        counts(3, g) = 15;  counts(4, g) = 70;  counts(5, g) = 20;
+    }
+    for (int g = 10; g < 20; g++) {
+        // Near-Poisson: very tight within each condition → near-zero MLE dispersion
+        counts(0, g) = 100;  counts(1, g) = 101;  counts(2, g) = 100;
+        counts(3, g) = 99;   counts(4, g) = 100;  counts(5, g) = 101;
+    }
+
+    Eigen::MatrixXd metadata(6, 1);
+    for (int i = 0; i < 3; i++) metadata(i, 0) = 0;
+    for (int i = 3; i < 6; i++) metadata(i, 0) = 1;
+
+    DeseqDataSet dds(counts, metadata);
+    dds.fitSizeFactors();
+    dds.fitGenewiseDispersions();
+    dds.fitDispersionTrend();
+    dds.fitDispersionPrior();
+    dds.fitMAPDispersions();
+
+    auto mle    = dds.getGenewiseDispersions();
+    auto fitted = dds.getFittedDispersions();
+    auto map    = dds.getMAPDispersions();
+
+    int below_trend_count = 0;
+    int shrunk_upward = 0;
+    for (int j = 0; j < static_cast<int>(mle.size()); j++) {
+        if (mle(j) > 0 && fitted(j) > 0 && mle(j) < fitted(j)) {
+            below_trend_count++;
+            if (map(j) > mle(j) + 1e-8)
+                shrunk_upward++;
+        }
+    }
+
+    check(below_trend_count > 0,
+          "Test has below-trend genes to exercise the rule (" +
+              std::to_string(below_trend_count) + " genes below trend)");
+    check(shrunk_upward == 0,
+          "No below-trend gene has MAP inflated above MLE (Love 2014 rule enforced)");
+}
+
+// ============================================================================
 int main() {
     std::cout << "========================================" << std::endl;
     std::cout << " Y2H-SCORES Validation Suite" << std::endl;
@@ -386,6 +441,7 @@ int main() {
     testBordaAggregation();
     testFullPipeline();
     testEdgeCases();
+    testBelowTrendShrinkage();
 
     std::cout << "\n========================================" << std::endl;
     std::cout << "TOTAL: " << passed << " passed, " << failed << " failed" << std::endl;

@@ -3822,7 +3822,10 @@ namespace deseq2
         QMessageBox::about(static_cast<QWidget *>(this), "About StatMaker++",
                            "StatMaker++ Y2H Statistical Analysis\n\n"
                            "Version 1.0.0\n"
-                           "A Qt6-based interface for DESeq2 and Y2H-SCORES analysis.");
+                           "Statistical analysis pipeline for competitive Y2H screens.\n"
+                           "Implements DESeq2 differential expression and Y2H-SCORES\n"
+                           "(enrichment, specificity, in-frame) with Borda aggregation.\n\n"
+                           "Reference: Piper et al. 2016 (DEEPN); Velásquez-Zapata et al. 2021 (Y2H-SCORES).");
     }
 
     void MainWindow::onUserGuide()

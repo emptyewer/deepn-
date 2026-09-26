@@ -59,7 +59,11 @@ void MainWindow::updateGeneCountProgress() {
       ui->gc_output->appendPlainText(QString(""));
     }
     first = false;
-    if (stat.running == false) {
+    if (!stat.errorMessage.isEmpty()) {
+      ui->gc_output->appendPlainText(QString(">>> %1 <<<").arg(stat.input));
+      ui->gc_output->appendPlainText(
+          QString("\nERROR: %1").arg(stat.errorMessage));
+    } else if (stat.running == false) {
       ui->gc_output->appendPlainText(QString(">>> %1 <<<").arg(stat.input));
       ui->gc_output->appendPlainText(QString("Finished Counting %2 in %1 secs ")
                                          .arg(stat.elapsedTime)

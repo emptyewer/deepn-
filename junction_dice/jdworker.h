@@ -5,6 +5,7 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
+#include <QHash>
 #include <QList>
 #include <QMap>
 #include <QObject>
@@ -39,14 +40,18 @@ class JDWorker : public QObject {
 
  private:
   int fileCount;
-  QString jseq_pattern;
+  QString jseq_pattern;   // Tier 1: full matchLength bases (primary search)
+  QString jseq_pattern2;  // Tier 2: 2/3 of matchLength (recovers 5' junction errors)
+  QString jseq_pattern3;  // Tier 3: 1/3 of matchLength (recovers most junction errors)
   QString repeats_sequence;
   QElapsedTimer elapsedTimer;
   QTimer *mapTimer;
   Signals *sig = Signals::getCommonInstance();
   JDStat *stat;
   QProcess process;
-  QStringList readNames;
+  QHash<QString, int> readIndex;
+  int mapPollCount = 0;
+  bool mapFinished = false;
   QString readDepthFileName;
   QString dbConnectionName;
   QSqlDatabase db;

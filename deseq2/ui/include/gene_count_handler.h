@@ -23,8 +23,8 @@ namespace deseq2
         QString groupName;                // Assigned group name
         QMap<QString, double> geneCounts; // Gene name -> PPM value mapping
         QMap<QString, int> geneRawCounts; // Gene name -> raw integer count
-        int totalReads;                   // Total reads from file
-        int totalHits;                    // Total hits from file
+        qint64 totalReads;                // Total reads from file (qint64 avoids overflow at >2.1B reads)
+        qint64 totalHits;                 // Total hits from file
         bool isValid;                     // Whether the file was parsed successfully
         QString errorMessage;             // Error message if parsing failed
     };
@@ -224,7 +224,7 @@ namespace deseq2
          * @param totalReads Output parameter for total reads
          * @param totalHits Output parameter for total hits
          */
-        void extractHeaderInfo(const QStringList &lines, int &totalReads, int &totalHits);
+        void extractHeaderInfo(const QStringList &lines, qint64 &totalReads, qint64 &totalHits);
     };
 
 } // namespace deseq2

@@ -29,9 +29,9 @@ bool sqliteHasTables(const QString& dbPath, const QStringList& requiredTables) {
             int found = 0;
             for (const QString& table : requiredTables) {
                 QSqlQuery q(db);
-                if (q.exec(QString("SELECT 1 FROM sqlite_master WHERE type='table' AND name='%1'").arg(table))) {
-                    if (q.next()) found++;
-                }
+                q.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name");
+                q.bindValue(":name", table);
+                if (q.exec() && q.next()) found++;
             }
             ok = (found == requiredTables.size());
             db.close();
