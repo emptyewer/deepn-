@@ -1,0 +1,9 @@
+---
+description: Every plan, change, test run and review is verified by a different model family
+globs:
+alwaysApply: true
+---
+- Every plan, implementation, test run and review is checked by an agent from a different model family than the one that produced it (Claude, Codex/GPT, Grok, Gemini/agy).
+- Reviewers and testers come from a different family than the author; high-risk changes (including the native/Qt build) get a second reviewer from a third family.
+- A same-family check never counts on its own; receipts and reviews record `author family:` and `reviewer family:`.
+- Rule and routing: `/Volumes/Projects/wiki/patterns/cross-family-verification.md`.
