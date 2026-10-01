@@ -7,3 +7,10 @@ alwaysApply: true
 - Reviewers and testers come from a different family than the author; high-risk changes (including the native/Qt build) get a second reviewer from a third family.
 - A same-family check never counts on its own; receipts and reviews record `author family:` and `reviewer family:`.
 - Rule and routing: `/Volumes/Projects/wiki/patterns/cross-family-verification.md`.
+
+## Owner working agreement
+
+The owner's standing guidelines for every project live in `/Volumes/Projects/wiki/patterns/owner-working-agreement.md`:
+persistence until the work is reviewer-approved, the token-limit policy, family substitution (Grok is out of tokens, so
+use agy/Gemini), the commit/push cadence, and coordination with other agents. Record any new general owner guideline
+there in the same turn.
